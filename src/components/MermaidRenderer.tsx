@@ -241,19 +241,51 @@ const NonMemoizedMermaidRenderer = ({ chart, language }: MermaidRendererProps) =
 
   // Show error fallback with raw code (subtle error display)
   if (error) {
+    // When render fails, show editable textarea to fix the source code
     return (
       <div className="relative my-4">
         <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-700 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
           <span>{language}</span>
           <div className="flex items-center gap-2">
             <span className="text-xs text-red-500 dark:text-red-400 opacity-70">render failed</span>
-            <CopyButton text={chart} />
+            <CopyButton text={editValue} />
           </div>
         </div>
-        <div className="bg-white dark:bg-neutral-800 p-4 rounded-b-md border border-gray-200 dark:border-neutral-700">
-          <pre className="text-gray-800 dark:text-neutral-300 text-sm whitespace-pre-wrap overflow-x-auto">
-            <code>{chart}</code>
-          </pre>
+        <div className="bg-white dark:bg-neutral-800 rounded-b-md p-4 border border-gray-200 dark:border-neutral-700">
+          <textarea
+            className="w-full min-h-[120px] max-h-[400px] text-gray-800 dark:text-neutral-300 text-sm font-mono bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded p-2 resize-vertical focus:outline-none focus:ring-2 focus:ring-blue-400"
+            value={editValue}
+            onChange={e => setEditValue(e.target.value)}
+            spellCheck={false}
+            autoFocus
+          />
+          <div className="flex justify-end mt-2 gap-2">
+            <Button
+              onClick={() => {
+                setShowPreview(true);
+                if (editValue !== currentChart) {
+                  setCurrentChart(editValue);
+                  window.dispatchEvent(new CustomEvent('mermaid-edit', { detail: { newChart: editValue } }));
+                  setError('');
+                }
+              }}
+              className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              title="Apply changes and preview"
+            >
+              Save & Preview
+            </Button>
+            <Button
+              onClick={() => {
+                setEditValue(currentChart);
+                setShowPreview(true);
+                setError('');
+              }}
+              className="px-3 py-1 bg-neutral-400 text-white rounded hover:bg-neutral-500 transition-colors"
+              title="Cancel editing"
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       </div>
     );
