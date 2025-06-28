@@ -58,6 +58,10 @@ func main() {
 			URL string `json:"url,omitempty" yaml:"url,omitempty"`
 		}
 
+		type backgroundType struct {
+			URL string `json:"url,omitempty" yaml:"url,omitempty"`
+		}
+
 		type configType struct {
 			Title string `json:"title,omitempty" yaml:"title,omitempty"`
 
@@ -68,6 +72,8 @@ func main() {
 			Voice *voiceType `json:"voice,omitempty" yaml:"voice,omitempty"`
 
 			Bridge *bridgeType `json:"bridge,omitempty" yaml:"bridge,omitempty"`
+
+			Backgrounds map[string][]backgroundType `json:"backgrounds,omitempty" yaml:"backgrounds,omitempty"`
 		}
 
 		config := configType{
@@ -76,6 +82,10 @@ func main() {
 
 		if data, err := os.ReadFile("models.yaml"); err == nil {
 			yaml.Unmarshal(data, &config.Models)
+		}
+
+		if data, err := os.ReadFile("backgrounds.yaml"); err == nil {
+			yaml.Unmarshal(data, &config.Backgrounds)
 		}
 
 		if tts {

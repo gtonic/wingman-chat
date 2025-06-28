@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 import { Chat } from '../models/chat';
 import { setValue, getValue } from '../lib/db';
@@ -68,7 +68,6 @@ async function migrateChats(): Promise<Chat[]> {
 
 export function useChats() {
   const [chats, setChats] = useState<Chat[]>([]);
-  const saveTimeoutRef = useRef<number | null>(null);
 
   // Load chats on mount
   useEffect(() => {
@@ -89,48 +88,31 @@ export function useChats() {
       messages: [],
     };
 
-    setChats((prev) => {
-      const items = [chat, ...prev];
-      debounceSaveChats(items);
-
-      return items;
-    });
+    setChats((prev) => [chat, ...prev]);
     
     return chat;
   }
 
   function updateChat(chatId: string, updates: Partial<Chat>) {
-    setChats((prev) => {
-      const items = prev.map((chat) => 
-        chat.id === chatId 
-          ? { ...chat, ...updates, updated: new Date() }
-          : chat
-      );
-
-      debounceSaveChats(items);
-      return items;
-    });
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.id === chatId ? { ...chat, ...updates, updated: new Date() } : chat
+      )
+    );
   }
 
   function deleteChat(chatId: string) {
-    setChats((prev) => {
-      const items = prev.filter((chat) => chat.id !== chatId);
-      debounceSaveChats(items);
-      
-      return items;
-    });
+    setChats((prev) => prev.filter((chat) => chat.id !== chatId));
   }
 
-  const debounceSaveChats = useCallback((chatItems?: Chat[]) => {
-    if (saveTimeoutRef.current) {
-      window.clearTimeout(saveTimeoutRef.current);
-    }
-
-    saveTimeoutRef.current = window.setTimeout(async () => {
-      const itemsToSave = chatItems || chats;
-      await storeChats(itemsToSave);
-      saveTimeoutRef.current = null;
+  // Persist chats to storage with debounce when chats change
+  useEffect(() => {
+    const handler = window.setTimeout(() => {
+      storeChats(chats);
     }, SAVE_DELAY);
+    return () => {
+      window.clearTimeout(handler);
+    };
   }, [chats]);
 
   return { chats, createChat, updateChat, deleteChat };

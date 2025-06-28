@@ -2,10 +2,19 @@ import { Bridge } from "./lib/bridge";
 import { Client } from "./lib/client";
 import { Model } from "./models/chat";
 
+interface backgroundConfig {
+  url: string;
+}
+
+interface backgroundPackConfig {
+  [packName: string]: backgroundConfig[];
+}
+
 interface config {
   title: string;
 
   models: modelConfig[];
+  backgrounds?: backgroundPackConfig;
   
   tts?: ttsConfig;
   stt?: sttConfig;
@@ -48,7 +57,8 @@ interface Config {
   
   bridge: Bridge;
 
-  models: Model[]; 
+  models: Model[];
+  backgrounds: backgroundPackConfig;
 }
 
 let config: Config;
@@ -86,7 +96,9 @@ export const loadConfig = async (): Promise<Config | undefined> => {
           name: model.name,
           description: model.description,
         };
-      }),
+      }) ?? [],
+
+      backgrounds: cfg.backgrounds ?? {},
     }
 
     return config;

@@ -7,6 +7,7 @@ import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
 import { NavigationProvider, useNavigation } from "./contexts/NavigationContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LayoutProvider } from "./contexts/LayoutContext";
+import { BackgroundProvider } from "./contexts/BackgroundContext";
 import { ChatProvider } from "./contexts/ChatContext";
 import { TranslateProvider } from "./contexts/TranslateContext";
 import { VoiceProvider } from "./contexts/VoiceContext";
@@ -32,6 +33,21 @@ function AppContent() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [setShowSidebar]);
+
+  // Prevent default file-drop behavior on the rest of the page (avoid navigation)
+  useEffect(() => {
+    const preventDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    window.addEventListener('dragover', preventDrop);
+    window.addEventListener('drop', preventDrop);
+    return () => {
+      window.removeEventListener('dragover', preventDrop);
+      window.removeEventListener('drop', preventDrop);
+    };
+  }, []);
 
   const pages: { key: Page; label: string; icon: React.ReactNode }[] = [
     { key: "chat", label: "Chat", icon: <MessageCircle size={20} /> },
@@ -147,17 +163,19 @@ function App() {
   return (
     <ThemeProvider>
       <LayoutProvider>
-        <SidebarProvider>
-          <NavigationProvider>
-            <ChatProvider>
-              <VoiceProvider>
-                <TranslateProvider>
-                  <AppContent />
-                </TranslateProvider>
-              </VoiceProvider>
-            </ChatProvider>
-          </NavigationProvider>
-        </SidebarProvider>
+        <BackgroundProvider>
+          <SidebarProvider>
+            <NavigationProvider>
+              <ChatProvider>
+                <VoiceProvider>
+                  <TranslateProvider>
+                    <AppContent />
+                  </TranslateProvider>
+                </VoiceProvider>
+              </ChatProvider>
+            </NavigationProvider>
+          </SidebarProvider>
+        </BackgroundProvider>
       </LayoutProvider>
     </ThemeProvider>
   );

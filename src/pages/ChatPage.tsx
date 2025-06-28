@@ -7,10 +7,12 @@ import { useNavigation } from "../contexts/NavigationContext";
 import { useLayout } from "../hooks/useLayout";
 import { useChat } from "../hooks/useChat";
 import { useVoice } from "../hooks/useVoice";
+import { useBackground } from "../hooks/useBackground";
 import { ChatInput } from "../components/ChatInput";
 import { ChatMessage } from "../components/ChatMessage";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { VoiceWaves } from "../components/VoiceWaves";
+import { BackgroundImage } from "../components/BackgroundImage";
 
 export function ChatPage() {
   const {
@@ -22,6 +24,9 @@ export function ChatPage() {
   
   const { layoutMode } = useLayout();
   const { isAvailable, startVoice, stopVoice } = useVoice();
+  
+  // Only need backgroundImage to check if background should be shown
+  const { backgroundImage } = useBackground();
   
   // Local state for voice mode (UI state)
   const [isVoiceMode, setIsVoiceMode] = useState(false);
@@ -125,18 +130,22 @@ export function ChatPage() {
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden relative">
+      {messages.length === 0 && <BackgroundImage />}
+      
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {messages.length === 0 ? (
           <div className="flex-1 flex items-center justify-center pt-16 relative">
             <div className="flex flex-col items-center text-center relative z-10 w-full max-w-4xl px-4 mb-32">
-              {/* Logo */}
-              <div className="mb-8">
-                <img 
-                  src="/logo.svg" 
-                  alt="Wingman Chat" 
-                  className="h-24 w-24 opacity-80 dark:opacity-60"
-                />
-              </div>
+              {/* Logo - only show if no background image is available */}
+              {!backgroundImage && (
+                <div className="mb-8">
+                  <img 
+                    src="/logo.svg" 
+                    alt="Wingman Chat" 
+                    className="h-24 w-24 opacity-80 dark:opacity-60"
+                  />
+                </div>
+              )}
             </div>
           </div>
         ) : (

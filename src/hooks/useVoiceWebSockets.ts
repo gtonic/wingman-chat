@@ -50,11 +50,19 @@ export function useVoiceWebSockets(
           type: 'session.update',
           session: {
             voice: 'alloy',
+            
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
+
             input_audio_transcription: {
               model: transcribeModel,
             },
+            
+            turn_detection: {
+              type: 'semantic_vad',
+              create_response: true,
+              interrupt_response: true,
+            }
           }
         };
 

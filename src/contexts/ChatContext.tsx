@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, useRef, useEffect } from "react";
+import { createContext, useState, useCallback } from "react";
 import { Chat, Message, Model, Role } from "../models/chat";
 import { useModels } from "../hooks/useModels";
 import { useChats } from "../hooks/useChats";
@@ -24,9 +24,6 @@ export interface ChatContextType {
   addMessage: (message: Message) => void;
   sendMessage: (message: Message) => Promise<void>;
 
-  // Refs for stable references
-  chatsRef: React.MutableRefObject<Chat[]>;
-  chatIdRef: React.MutableRefObject<string | null>;
 }
 
 export const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -48,18 +45,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const model = chat?.model ?? selectedModel ?? models[0];
   const messages = chat?.messages ?? [];
 
-  // Use refs to maintain stable references for frequently changing values
-  const chatsRef = useRef(chats);
-  const chatIdRef = useRef(chatId);
-
-  // Update refs when values change
-  useEffect(() => {
-    chatsRef.current = chats;
-  }, [chats]);
-
-  useEffect(() => {
-    chatIdRef.current = chatId;
-  }, [chatId]);
 
   // Handler functions with stable references
   const createChat = useCallback(() => {
@@ -72,12 +57,15 @@ export function ChatProvider({ children }: ChatProviderProps) {
     setChatId(chatId);
   }, []);
 
-  const deleteChat = useCallback((chatId: string) => {
-    deleteChatHook(chatId);
-    if (chatsRef.current.find(c => c.id === chatIdRef.current)?.id === chatId) {
-      setChatId(null);
-    }
-  }, [deleteChatHook]);
+  const deleteChat = useCallback(
+    (id: string) => {
+      deleteChatHook(id);
+      if (chatId === id) {
+        setChatId(null);
+      }
+    },
+    [deleteChatHook, chatId]
+  );
 
   // Unified setModel function that does the right thing based on context
   const setModel = useCallback((model: Model | null) => {
@@ -96,38 +84,42 @@ export function ChatProvider({ children }: ChatProviderProps) {
       throw new Error('no model selected');
     }
 
-    let id = chatIdRef.current;
-    let chat = id ? chatsRef.current.find(c => c.id === id) || null : null;
+    let id = chatId;
+    let chatItem = id ? chats.find(c => c.id === id) || null : null;
 
-    if (!chat) {
-      chat = createChatHook();
-      chat.model = model;
+    if (!chatItem) {
+      chatItem = createChatHook();
+      chatItem.model = model;
 
-      setChatId(chat.id);
-      updateChat(chat.id, { model });
+      setChatId(chatItem.id);
+      updateChat(chatItem.id, { model });
 
-      id = chat.id;
+      id = chatItem.id;
     }
 
-    return { id: id!, chat: chat! };
-  }, [model, createChatHook, updateChat, setChatId, chatsRef, chatIdRef]);
+    return { id: id!, chat: chatItem! };
+  }, [model, createChatHook, updateChat, setChatId, chatId, chats]);
 
-  const addMessage = useCallback((message: Message) => {
-    if (!message.content.trim()) return;
+  const addMessage = useCallback(
+    (message: Message) => {
+      if (!message.content.trim()) return;
 
-    const { id } = getOrCreateChat();
-    const existingMessages = chatsRef.current.find(c => c.id === id)?.messages || [];
-    updateChat(id, { messages: [...existingMessages, message] });
-  }, [getOrCreateChat, updateChat, chatsRef]);
+      const { id } = getOrCreateChat();
+      const existingMessages = chats.find(c => c.id === id)?.messages || [];
+      updateChat(id, { messages: [...existingMessages, message] });
+    },
+    [getOrCreateChat, updateChat, chats]
+  );
 
-  const sendMessage = useCallback(async (message: Message) => {
-    const { id, chat: chatObj } = getOrCreateChat();
+  const sendMessage = useCallback(
+    async (message: Message) => {
+      const { id, chat: chatObj } = getOrCreateChat();
 
-    const existingMessages = chatsRef.current.find(c => c.id === id)?.messages || [];
-    const conversation = [...existingMessages, message];
-    const updateMessages = (msgs: Message[]) => updateChat(id, { messages: msgs });
+      const existingMessages = chats.find(c => c.id === id)?.messages || [];
+      const conversation = [...existingMessages, message];
+      const updateMessages = (msgs: Message[]) => updateChat(id, { messages: msgs });
 
-    updateMessages([...conversation, { role: Role.Assistant, content: '' }]);
+      updateMessages([...conversation, { role: Role.Assistant, content: '' }]);
 
     try {
       const tools = await bridge.listTools();
@@ -154,7 +146,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       const errorMessage = { role: Role.Assistant, content: `An error occurred:\n${error}` };
       updateMessages([...conversation, errorMessage]);
     }
-  }, [getOrCreateChat, updateChat, bridge, client, model, chatsRef]);
+  }, [getOrCreateChat, updateChat, bridge, client, model, chats]);
 
   const value: ChatContextType = {
     // Models
@@ -177,9 +169,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
     addMessage,
     sendMessage,
 
-    // Refs
-    chatsRef,
-    chatIdRef,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
