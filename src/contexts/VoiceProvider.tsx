@@ -1,19 +1,9 @@
-import { createContext, useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useVoiceWebSockets } from "../hooks/useVoiceWebSockets";
 import { useChat } from "../hooks/useChat";
 import { getConfig } from "../config";
-import { Role } from "../models/chat";
-
-export interface VoiceContextType {
-  isAvailable: boolean;
-  isListening: boolean;
-  startVoice: () => Promise<void>;
-  stopVoice: () => Promise<void>;
-}
-
-const VoiceContext = createContext<VoiceContextType | undefined>(undefined);
-
-export { VoiceContext };
+import { Role } from "../types/chat";
+import { VoiceContext, VoiceContextType } from './VoiceContext';
 
 interface VoiceProviderProps {
   children: React.ReactNode;

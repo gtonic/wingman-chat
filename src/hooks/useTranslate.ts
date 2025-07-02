@@ -1,3 +1,10 @@
-import { useTranslate as useTranslateContext } from "../contexts/TranslateContext";
+import { useContext } from "react";
+import { TranslateContext } from '../contexts/TranslateContext';
 
-export const useTranslate = useTranslateContext;
+export function useTranslate() {
+  const context = useContext(TranslateContext);
+  if (context === undefined) {
+    throw new Error("useTranslate must be used within a TranslateProvider");
+  }
+  return context;
+}

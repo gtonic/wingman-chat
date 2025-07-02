@@ -99,3 +99,33 @@ export function clearDB(): Promise<void> {
     deleteRequest.onerror = () => reject(deleteRequest.error);
   });
 }
+
+export async function getStorageUsage(): Promise<{
+  totalSize: number;
+  entries: Array<{ key: string; size: number }>;
+}> {
+  const db = await openDB();
+  const transaction = db.transaction([STORE_NAME], 'readonly');
+  const objectStore = transaction.objectStore(STORE_NAME);
+  
+  return new Promise((resolve, reject) => {
+    const getAllRequest = objectStore.getAll();
+    
+    getAllRequest.onsuccess = () => {
+      const results = getAllRequest.result;
+      let totalSize = 0;
+      const entries: Array<{ key: string; size: number }> = [];
+      
+      results.forEach((item: { key: string; value: string }) => {
+        // Calculate approximate size in bytes
+        const size = new Blob([item.value]).size;
+        totalSize += size;
+        entries.push({ key: item.key, size });
+      });
+      
+      resolve({ totalSize, entries });
+    };
+    
+    getAllRequest.onerror = () => reject(getAllRequest.error);
+  });
+}

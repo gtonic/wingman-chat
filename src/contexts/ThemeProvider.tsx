@@ -1,15 +1,5 @@
-import { createContext, useContext, useState, useEffect, useLayoutEffect, ReactNode } from 'react';
-
-// Support light, dark, or system preference modes
-export type Theme = 'light' | 'dark' | 'system';
-
-type ThemeContextType = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-  isDark: boolean;
-};
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+import { useState, useEffect, useLayoutEffect, ReactNode } from 'react';
+import { ThemeContext, Theme, ThemeContextType } from './ThemeContext';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   // Initialize theme from localStorage or system preference
@@ -45,17 +35,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [isDark, theme]);
 
+  const value: ThemeContextType = {
+    theme,
+    setTheme,
+    isDark,
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, isDark }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
-}
-
-export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
 }

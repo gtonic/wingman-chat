@@ -3,15 +3,21 @@ import { MessageCircle, Languages, PanelLeftOpen, PanelRightOpen } from "lucide-
 import { Button } from "@headlessui/react";
 import { ChatPage } from "./pages/ChatPage";
 import { TranslatePage } from "./pages/TranslatePage";
-import { SidebarProvider, useSidebar } from "./contexts/SidebarContext";
-import { NavigationProvider, useNavigation } from "./contexts/NavigationContext";
-import { ThemeProvider } from "./contexts/ThemeContext";
-import { LayoutProvider } from "./contexts/LayoutContext";
-import { BackgroundProvider } from "./contexts/BackgroundContext";
-import { ChatProvider } from "./contexts/ChatContext";
-import { TranslateProvider } from "./contexts/TranslateContext";
-import { VoiceProvider } from "./contexts/VoiceContext";
+import { SidebarProvider } from "./contexts/SidebarProvider";
+import { useSidebar } from "./hooks/useSidebar";
+import { NavigationProvider } from "./contexts/NavigationProvider";
+import { useNavigation } from "./hooks/useNavigation";
+import { ThemeProvider } from "./contexts/ThemeProvider";
+import { LayoutProvider } from "./contexts/LayoutProvider";
+import { BackgroundProvider } from "./contexts/BackgroundProvider";
+import { ChatProvider } from "./contexts/ChatProvider";
+import { TranslateProvider } from "./contexts/TranslateProvider";
+import { VoiceProvider } from "./contexts/VoiceProvider";
 import { SettingsButton } from "./components/SettingsButton";
+import { RepositoryProvider } from "./contexts/RepositoryProvider";
+import { BridgeProvider } from "./contexts/BridgeProvider";
+import { ProfileProvider } from "./contexts/ProfileProvider";
+import { BridgeIndicator } from "./components/BridgeIndicator";
 
 type Page = "chat" | "translate";
 
@@ -144,15 +150,19 @@ function AppContent() {
             {/* Right section */}
             <div className="flex items-center gap-2 justify-end flex-1">
               <SettingsButton />
+              <BridgeIndicator />
               {rightActions}
             </div>
           </div>
         </nav>
         
         {/* Content area - no padding so it can scroll under the nav */}
-        <div className="flex-1 overflow-hidden">
-          {currentPage === "chat" && <ChatPage />}
-          {currentPage === "translate" && <TranslatePage />}
+        <div className="flex-1 overflow-hidden flex">
+          {/* Main content */}
+          <div className="flex-1 overflow-hidden">
+            {currentPage === "chat" && <ChatPage />}
+            {currentPage === "translate" && <TranslatePage />}
+          </div>
         </div>
       </div>
     </div>
@@ -164,17 +174,23 @@ function App() {
     <ThemeProvider>
       <LayoutProvider>
         <BackgroundProvider>
-          <SidebarProvider>
-            <NavigationProvider>
-              <ChatProvider>
-                <VoiceProvider>
-                  <TranslateProvider>
-                    <AppContent />
-                  </TranslateProvider>
-                </VoiceProvider>
-              </ChatProvider>
-            </NavigationProvider>
-          </SidebarProvider>
+          <ProfileProvider>
+            <SidebarProvider>
+              <NavigationProvider>
+                <BridgeProvider>
+                  <RepositoryProvider>
+                    <ChatProvider>
+                      <VoiceProvider>
+                        <TranslateProvider>
+                          <AppContent />
+                        </TranslateProvider>
+                      </VoiceProvider>
+                    </ChatProvider>
+                  </RepositoryProvider>
+                </BridgeProvider>
+              </NavigationProvider>
+            </SidebarProvider>
+          </ProfileProvider>
         </BackgroundProvider>
       </LayoutProvider>
     </ThemeProvider>

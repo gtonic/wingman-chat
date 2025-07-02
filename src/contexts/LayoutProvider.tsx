@@ -1,13 +1,5 @@
-import { createContext, useState, useLayoutEffect, ReactNode } from 'react';
-
-export type LayoutMode = 'normal' | 'wide';
-
-type LayoutContextType = {
-  layoutMode: LayoutMode;
-  setLayoutMode: (mode: LayoutMode) => void;
-};
-
-const LayoutContext = createContext<LayoutContextType | undefined>(undefined);
+import { useState, useLayoutEffect, ReactNode } from 'react';
+import { LayoutContext, LayoutMode, LayoutContextType } from './LayoutContext';
 
 export function LayoutProvider({ children }: { children: ReactNode }) {
   // Initialize layout mode from localStorage
@@ -35,16 +27,14 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle('layout-wide', layoutMode === 'wide');
   }, [layoutMode]);
 
+  const value: LayoutContextType = {
+    layoutMode,
+    setLayoutMode: handleSetLayoutMode,
+  };
+
   return (
-    <LayoutContext.Provider 
-      value={{ 
-        layoutMode, 
-        setLayoutMode: handleSetLayoutMode
-      }}
-    >
+    <LayoutContext.Provider value={value}>
       {children}
     </LayoutContext.Provider>
   );
 }
-
-export { LayoutContext };

@@ -1,10 +1,14 @@
-import { Fragment, useState } from 'react';
-import { X, Settings, MessageSquare, Trash2, ChevronsUpDown, Check } from 'lucide-react';
+import { Fragment, useState, useEffect } from 'react';
+import { X, Settings, MessageSquare, Trash2, ChevronsUpDown, Check, User, Database } from 'lucide-react';
 import { Dialog, Transition, Listbox } from '@headlessui/react';
 import { useSettings } from '../hooks/useSettings';
 import { useChat } from '../hooks/useChat';
+import { useRepositories } from '../hooks/useRepositories';
+import { getStorageUsage } from '../lib/db';
+import { formatBytes } from '../lib/utils';
 import type { Theme } from '../contexts/ThemeContext';
 import type { LayoutMode } from '../types/settings';
+import type { BackgroundPack } from '../contexts/BackgroundContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -25,6 +29,8 @@ const layoutOptions: { value: LayoutMode; label: string }[] = [
 const sections = [
   { id: 'general', label: 'General', icon: Settings },
   { id: 'chats', label: 'Chats', icon: MessageSquare },
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'storage', label: 'Storage', icon: Database },
 ];
 
 // A generic, reusable Select component using Headless UI Listbox
@@ -64,10 +70,48 @@ function Select<T extends string | null>({ label, value, onChange, options, help
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const {
     theme, setTheme, layoutMode, setLayoutMode,
-    backgroundPacks, backgroundSetting, setBackground
+    backgroundPacks, backgroundSetting, setBackground,
+    profile, updateProfile
   } = useSettings();
   const { chats, deleteChat } = useChat();
+  const { repositories, deleteRepository } = useRepositories();
   const [activeSection, setActiveSection] = useState('general');
+  const [storageInfo, setStorageInfo] = useState<{
+    totalSize: number;
+    entries: Array<{ key: string; size: number }>;
+    isLoading: boolean;
+    error: string | null;
+  }>({
+    totalSize: 0,
+    entries: [],
+    isLoading: false,
+    error: null,
+  });
+
+  // Load storage info when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const loadStorageInfo = async () => {
+        try {
+          setStorageInfo(prev => ({ ...prev, isLoading: true, error: null }));
+          const usage = await getStorageUsage();
+          setStorageInfo({
+            totalSize: usage.totalSize,
+            entries: usage.entries,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          setStorageInfo(prev => ({
+            ...prev,
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'Failed to load storage info',
+          }));
+        }
+      };
+      loadStorageInfo();
+    }
+  }, [isOpen]);
 
   const handleDeleteAllChats = () => {
     if (window.confirm(`Are you sure you want to delete all ${chats.length} chat${chats.length === 1 ? '' : 's'}? This action cannot be undone.`)) {
@@ -75,7 +119,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
-  const backgroundOptions = [{ value: null, label: 'None' }, ...backgroundPacks.map(p => ({ value: p.name, label: p.name }))];
+  const handleDeleteAllProjects = () => {
+    if (window.confirm(`Are you sure you want to delete all ${repositories.length} project${repositories.length === 1 ? '' : 's'}? This action cannot be undone and will remove all files in these projects.`)) {
+      repositories.forEach(repo => deleteRepository(repo.id));
+    }
+  };
+
+  const backgroundOptions = [{ value: null, label: 'None' }, ...backgroundPacks.map((p: BackgroundPack) => ({ value: p.name, label: p.name }))];
   const sectionOptions = sections.map(s => ({ value: s.id, label: s.label }));
 
   const renderSectionContent = () => {
@@ -88,21 +138,150 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <Select label="Layout" value={layoutMode} onChange={setLayoutMode} options={layoutOptions} helpText="Choose between normal or wide layout for larger screens." />
           </div>
         );
-      case 'chats':
+      case 'profile': {
+        const availableTraits = [
+          'chatty', 'concise', 'friendly', 'professional', 'creative', 
+          'analytical', 'patient', 'encouraging', 'direct', 'detailed'
+        ];
+        
+        const toggleTrait = (trait: string) => {
+          const currentTraits = profile.traits || [];
+          const newTraits = currentTraits.includes(trait)
+            ? currentTraits.filter((t: string) => t !== trait)
+            : [...currentTraits, trait];
+          updateProfile({ traits: newTraits });
+        };
+
         return (
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-1">Chat Management</h3>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">You have {chats.length} chat{chats.length === 1 ? '' : 's'} saved locally.</p>
+              <label className="block text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-2">Name</label>
+              <input
+                type="text"
+                value={profile.name || ''}
+                onChange={(e) => updateProfile({ name: e.target.value })}
+                className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-800/60 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100"
+                placeholder="Your nickname or name"
+              />
             </div>
-            <button
-              onClick={handleDeleteAllChats}
-              disabled={chats.length === 0}
-              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800 disabled:bg-neutral-100 dark:disabled:bg-neutral-800 disabled:text-neutral-400 dark:disabled:text-neutral-600 disabled:cursor-not-allowed disabled:border-transparent"
-            >
-              <Trash2 size={16} />
-              Delete All Chats
-            </button>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-2">Role</label>
+              <input
+                type="text"
+                value={profile.role || ''}
+                onChange={(e) => updateProfile({ role: e.target.value })}
+                className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-800/60 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100"
+                placeholder="e.g., Software Developer, Student, Designer"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-2">Traits</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {availableTraits.map((trait) => {
+                  const isSelected = (profile.traits || []).includes(trait);
+                  return (
+                    <button
+                      key={trait}
+                      onClick={() => toggleTrait(trait)}
+                      className={`text-xs px-2 py-1 rounded-md border transition-colors ${
+                        isSelected
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-600'
+                          : 'bg-neutral-50 dark:bg-neutral-800/40 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-700/60'
+                      }`}
+                    >
+                      {isSelected ? `− ${trait}` : `+ ${trait}`}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">Click to add/remove traits for the AI's personality.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-2">Profile</label>
+              <textarea
+                value={profile.profile || ''}
+                onChange={(e) => updateProfile({ profile: e.target.value })}
+                className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-800/60 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100 resize-none"
+                rows={2}
+                placeholder="Brief description about yourself, your interests, or context..."
+              />
+            </div>
+          </div>
+        );
+      }
+      case 'chats':
+        return (
+          <div className="space-y-6">
+            {/* Chat Management */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-1">Chat Management</h3>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">You have {chats.length} chat{chats.length === 1 ? '' : 's'} saved locally.</p>
+              </div>
+              <button
+                onClick={handleDeleteAllChats}
+                disabled={chats.length === 0}
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800 disabled:bg-neutral-100 dark:disabled:bg-neutral-800 disabled:text-neutral-400 dark:disabled:text-neutral-600 disabled:cursor-not-allowed disabled:border-transparent"
+              >
+                <Trash2 size={16} />
+                Delete All Chats
+              </button>
+            </div>
+          </div>
+        );
+      case 'storage':
+        return (
+          <div className="space-y-6">
+            {/* Storage Usage Information */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-1">Storage Usage</h3>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  {storageInfo.isLoading ? (
+                    'Calculating storage usage...'
+                  ) : storageInfo.error ? (
+                    `Error: ${storageInfo.error}`
+                  ) : (
+                    `Total IndexedDB usage: ${formatBytes(storageInfo.totalSize)}`
+                  )}
+                </p>
+              </div>
+              
+              {!storageInfo.isLoading && !storageInfo.error && storageInfo.entries.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Storage Breakdown:</h4>
+                  <div className="space-y-1 text-xs">
+                    {storageInfo.entries
+                      .sort((a, b) => a.key.localeCompare(b.key))
+                      .map((entry) => (
+                        <div key={entry.key} className="flex justify-between text-neutral-600 dark:text-neutral-400">
+                          <span className="truncate flex-1 mr-2">{entry.key}</span>
+                          <span className="flex-shrink-0">{formatBytes(entry.size)}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Project Management */}
+            <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4 space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-1">Project Management</h3>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">You have {repositories.length} project{repositories.length === 1 ? '' : 's'} saved locally.</p>
+              </div>
+              <button
+                onClick={handleDeleteAllProjects}
+                disabled={repositories.length === 0}
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800 disabled:bg-neutral-100 dark:disabled:bg-neutral-800 disabled:text-neutral-400 dark:disabled:text-neutral-600 disabled:cursor-not-allowed disabled:border-transparent"
+              >
+                <Trash2 size={16} />
+                Delete All Projects
+              </button>
+            </div>
           </div>
         );
       default: return null;

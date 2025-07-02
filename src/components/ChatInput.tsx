@@ -1,9 +1,9 @@
 import { ChangeEvent, useState, FormEvent, useRef, useEffect } from "react";
 import { Button, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 
-import { Send, Paperclip, ScreenShare, Image, X, Brain, Link, File, Loader2, FileText, Lightbulb, Mic, Square } from "lucide-react";
+import { Send, Paperclip, ScreenShare, Image, X, Brain, File, Loader2, FileText, Lightbulb, Mic, Square, Package } from "lucide-react";
 
-import { Attachment, AttachmentType, Message, Role, Tool } from "../models/chat";
+import { Attachment, AttachmentType, Message, Role } from "../types/chat";
 import {
   captureScreenshot,
   getFileExt,
@@ -18,6 +18,7 @@ import {
 } from "../lib/utils";
 import { getConfig } from "../config";
 import { useChat } from "../hooks/useChat";
+import { useRepositories } from "../hooks/useRepositories";
 import { useTextPaste } from "../hooks/useTextPaste";
 import { useTranscription } from "../hooks/useTranscription";
 import { useDropZone } from "../hooks/useDropZone";
@@ -25,18 +26,15 @@ import { useDropZone } from "../hooks/useDropZone";
 export function ChatInput() {
   const config = getConfig();
   const client = config.client;
-  const bridge = config.bridge;
 
-  // Use only context values
-  const { sendMessage: onSend, models, model, setModel: onModelChange, messages } = useChat();
+  const { sendMessage, models, model, setModel: onModelChange, messages } = useChat();
+  const { currentRepository, setCurrentRepository } = useRepositories();
 
   const [content, setContent] = useState("");
   const [transcribingContent, setTranscribingContent] = useState(false);
 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [extractingAttachments, setExtractingAttachments] = useState<Set<string>>(new Set());
-
-  const [bridgeTools, setBridgeTools] = useState<Tool[]>([]);
   
   // Prompt suggestions state
   const [showPromptSuggestions, setShowPromptSuggestions] = useState(false);
@@ -141,7 +139,7 @@ export function ChatInput() {
       attachments: attachments,
     };
 
-    onSend(message);
+    sendMessage(message);
     
     // Clear attachments after sending
     setAttachments([]);
@@ -163,28 +161,6 @@ export function ChatInput() {
         return <File size={24} />;
     }
   };
-
-  // Fetch bridge tools when bridge is connected
-  useEffect(() => {
-    const fetchTools = async () => {
-      if (bridge.isConnected()) {
-        try {
-          const tools = await bridge.listTools();
-          setBridgeTools(tools);
-        } catch (error) {
-          console.error("Failed to fetch bridge tools:", error);
-          setBridgeTools([]);
-        }
-      } else {
-        setBridgeTools([]);
-      }
-    };
-
-    fetchTools();
-    
-    const interval = setInterval(fetchTools, 5000);    
-    return () => clearInterval(interval);
-  }, [bridge]);
 
   // Force layout recalculation on mount to fix initial sizing issues
   useEffect(() => {
@@ -230,7 +206,7 @@ export function ChatInput() {
         attachments: attachments,
       };
 
-      onSend(message);
+      sendMessage(message);
       setContent("");
       setAttachments([]);
       
@@ -324,7 +300,11 @@ export function ChatInput() {
         className={`chat-input-container border-2 ${
           isDragging 
             ? 'border-dashed border-slate-400 dark:border-slate-500 bg-slate-50/80 dark:bg-slate-900/40 shadow-2xl shadow-slate-500/30 dark:shadow-slate-400/20 scale-[1.02] transition-all duration-200' 
-            : 'border-solid border-neutral-200 dark:border-neutral-700 bg-white/30 dark:bg-black/25'
+            : `border-solid border-neutral-200 dark:border-neutral-700 ${
+                messages.length === 0 
+                  ? 'bg-white/60 dark:bg-neutral-950/70' 
+                  : 'bg-white/30 dark:bg-neutral-950/50'
+              }`
         } backdrop-blur-2xl rounded-lg md:rounded-2xl flex flex-col min-h-[3rem] shadow-2xl shadow-black/60 dark:shadow-black/80 dark:ring-1 dark:ring-white/10 transition-all duration-200`}
       >
         <input
@@ -492,31 +472,20 @@ export function ChatInput() {
                 ))}
               </MenuItems>
             </Menu>
-            
-            {bridge.isConnected() && (
-              <div 
-                className="flex items-center gap-1 pr-1.5 py-1.5 text-neutral-600 dark:text-neutral-400 text-sm relative group"
-                title={bridgeTools.length > 0 ? `Available tools: ${bridgeTools.map(t => t.name).join(', ')}` : "Bridge connected"}
-              >
-                <Link size={14} />
-                <span>Bridge</span>
-                {bridgeTools.length > 0 && (
-                  <div className="absolute bottom-full left-0 mb-2 w-64 bg-neutral-800 dark:bg-neutral-700 text-white text-xs rounded-md p-2 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                    <div className="font-semibold mb-1">Available Tools ({bridgeTools.length}):</div>
-                    <div className="space-y-1">
-                      {bridgeTools.map((tool, index) => (
-                        <div key={index} className="flex flex-col">
-                          <span className="font-medium">{tool.name}</span>
-                          {tool.description && (
-                            <span className="text-neutral-300 dark:text-neutral-400 text-xs truncate" title={tool.description}>
-                              {tool.description}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
+            {currentRepository && (
+              <div className="group flex items-center gap-1 px-2 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 text-sm cursor-pointer">
+                <Package size={14} />
+                <span className="max-w-20 truncate" title={currentRepository.name}>
+                  {currentRepository.name}
+                </span>
+                <button
+                  onClick={() => setCurrentRepository(null)}
+                  className="opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all ml-1"
+                  title="Clear project"
+                >
+                  <X size={10} />
+                </button>
               </div>
             )}
           </div>

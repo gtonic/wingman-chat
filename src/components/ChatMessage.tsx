@@ -3,7 +3,7 @@ import { CopyButton } from './CopyButton';
 import { PlayButton } from './PlayButton';
 import { Bot, User, File, Brain } from "lucide-react";
 
-import { AttachmentType, Message, Role } from "../models/chat";
+import { AttachmentType, Message, Role } from "../types/chat";
 import { getConfig } from "../config";
 
 type ChatMessageProps = {

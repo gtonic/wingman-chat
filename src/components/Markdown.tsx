@@ -2,7 +2,7 @@ import { memo } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MermaidRenderer } from './MermaidRenderer';
-import { AdaptiveCardRenderer } from './AdaptiveCardRenderer';
+import { CardRenderer } from './CardRenderer';
 import { CodeRenderer } from './CodeRenderer';
 import { HtmlRenderer } from './HtmlRenderer';
 import { MediaPlayer } from './MediaPlayer';
@@ -192,7 +192,7 @@ const components: Partial<Components> = {
         }
 
         if (language === "adaptivecard" || language === "adaptive-card") {
-            return <AdaptiveCardRenderer cardJson={text} />;
+            return <CardRenderer cardJson={text} />;
         }
 
         // Auto-detect Adaptive Cards in JSON blocks
@@ -200,7 +200,7 @@ const components: Partial<Components> = {
             try {
                 const parsed = JSON.parse(text);
                 if (parsed.type === "AdaptiveCard" && parsed.version) {
-                    return <AdaptiveCardRenderer cardJson={text} />;
+                    return <CardRenderer cardJson={text} />;
                 }
             } catch {
                 // If parsing fails, fall through to regular JSON syntax highlighting

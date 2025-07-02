@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { Eye, Code } from 'lucide-react';
 import { Button } from '@headlessui/react';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 import { CopyButton } from './CopyButton';
 
 interface MermaidRendererProps {

@@ -3,13 +3,13 @@ import { Eye, Code } from 'lucide-react';
 import { Button } from '@headlessui/react';
 import { CopyButton } from './CopyButton';
 import { ChatContext } from '../contexts/ChatContext';
-import { Role } from '../models/chat';
+import { Role } from '../types/chat';
 
-interface AdaptiveCardRendererProps {
+interface CardRendererProps {
     cardJson: string;
 }
 
-interface AdaptiveCardsModule {
+interface CardsModule {
     AdaptiveCard: any;
     onProcessMarkdown?: (text: string, result: any) => void;
 }
@@ -18,14 +18,14 @@ interface MarkdownItModule {
     default: any;
 }
 
-const NonMemoizedAdaptiveCardRenderer = ({ cardJson }: AdaptiveCardRendererProps) => {
+const NonMemoizedCardRenderer = ({ cardJson }: CardRendererProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [renderedCard, setRenderedCard] = useState<HTMLElement | null>(null);
     const [error, setError] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
     const [librariesLoaded, setLibrariesLoaded] = useState(false);
     const [showPreview, setShowPreview] = useState(true);
-    const adaptiveCardsRef = useRef<AdaptiveCardsModule | null>(null);
+    const cardsRef = useRef<CardsModule | null>(null);
     
     // Get ChatContext for sending messages
     const chatContext = useContext(ChatContext);
@@ -34,16 +34,16 @@ const NonMemoizedAdaptiveCardRenderer = ({ cardJson }: AdaptiveCardRendererProps
     useEffect(() => {
         const loadLibraries = async () => {
             try {
-                const [adaptiveCardsModule, markdownItModule] = await Promise.all([
-                    import('adaptivecards') as Promise<AdaptiveCardsModule>,
+                const [cardsModule, markdownItModule] = await Promise.all([
+                    import('adaptivecards') as Promise<CardsModule>,
                     import('markdown-it') as Promise<MarkdownItModule>
                 ]);
 
-                adaptiveCardsRef.current = adaptiveCardsModule;
+                cardsRef.current = cardsModule;
                 
                 // Setup markdown processing
-                if (adaptiveCardsModule.AdaptiveCard) {
-                    adaptiveCardsModule.AdaptiveCard.onProcessMarkdown = function (text: string, result: any) {
+                if (cardsModule.AdaptiveCard) {
+                    cardsModule.AdaptiveCard.onProcessMarkdown = function (text: string, result: any) {
                         result.outputHtml = markdownItModule.default().render(text);
                         result.didProcess = true;
                     };
@@ -121,7 +121,7 @@ const NonMemoizedAdaptiveCardRenderer = ({ cardJson }: AdaptiveCardRendererProps
 
     useEffect(() => {
         const renderCard = async () => {
-            if (!adaptiveCardsRef.current || !librariesLoaded) return;
+            if (!cardsRef.current || !librariesLoaded) return;
             
             if (!cardJson.trim()) {
                 setIsLoading(true);
@@ -150,7 +150,7 @@ const NonMemoizedAdaptiveCardRenderer = ({ cardJson }: AdaptiveCardRendererProps
                 setIsLoading(true);
                 setError('');
 
-                const card = new adaptiveCardsRef.current.AdaptiveCard();
+                const card = new cardsRef.current.AdaptiveCard();
                 const cardPayload = JSON.parse(cardJson);
                 card.parse(cardPayload);
 
@@ -347,7 +347,7 @@ const NonMemoizedAdaptiveCardRenderer = ({ cardJson }: AdaptiveCardRendererProps
     );
 };
 
-export const AdaptiveCardRenderer = memo(
-    NonMemoizedAdaptiveCardRenderer,
+export const CardRenderer = memo(
+    NonMemoizedCardRenderer,
     (prevProps, nextProps) => prevProps.cardJson === nextProps.cardJson
 );

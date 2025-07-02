@@ -1,4 +1,4 @@
-import { Tool } from "../models/chat";
+import { Tool } from "../types/chat";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";

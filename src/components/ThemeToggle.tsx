@@ -1,6 +1,6 @@
 import { Sun, Moon, SunMoon } from "lucide-react";
 import { Button } from "@headlessui/react";
-import { useTheme } from "../contexts/ThemeContext";
+import { useTheme } from "../hooks/useTheme";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();

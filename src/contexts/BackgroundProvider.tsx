@@ -1,34 +1,8 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-} from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getConfig } from '../config';
-
-export interface BackgroundItem {
-  url: string;
-}
-
-export interface BackgroundPack {
-  name: string;
-  items: BackgroundItem[];
-}
-
-export type BackgroundSetting = string | null;
-
-interface BackgroundContextValue {
-  backgroundPacks: BackgroundPack[];
-  backgroundSetting: BackgroundSetting;
-  setBackground: (setting: BackgroundSetting) => void;
-  backgroundImage: string;
-}
+import { BackgroundContext, BackgroundPack, BackgroundSetting, BackgroundContextValue } from './BackgroundContext';
 
 const STORAGE_KEY = 'app_background';
-
-const BackgroundContext = createContext<BackgroundContextValue | undefined>(undefined);
 
 /**
  * Provides background packs and current background selection across the app.
@@ -85,23 +59,16 @@ export const BackgroundProvider: React.FC<React.PropsWithChildren<unknown>> = ({
     return pack.items[dayIndex].url;
   }, [backgroundPacks, backgroundSetting]);
 
+  const value: BackgroundContextValue = {
+    backgroundPacks,
+    backgroundSetting,
+    setBackground,
+    backgroundImage,
+  };
+
   return (
-    <BackgroundContext.Provider
-      value={{ backgroundPacks, backgroundSetting, setBackground, backgroundImage }}
-    >
+    <BackgroundContext.Provider value={value}>
       {children}
     </BackgroundContext.Provider>
   );
 };
-
-/**
- * Hook to access background settings and current wallpaper.
- * Must be used within a BackgroundProvider.
- */
-export function useBackgroundContext(): BackgroundContextValue {
-  const context = useContext(BackgroundContext);
-  if (!context) {
-    throw new Error('useBackgroundContext must be used within BackgroundProvider');
-  }
-  return context;
-}

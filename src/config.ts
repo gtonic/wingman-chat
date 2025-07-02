@@ -1,6 +1,6 @@
 import { Bridge } from "./lib/bridge";
 import { Client } from "./lib/client";
-import { Model } from "./models/chat";
+import { Model } from "./types/chat";
 
 interface backgroundConfig {
   url: string;
@@ -21,6 +21,7 @@ interface config {
   voice?: voiceConfig;
   
   bridge?: bridgeConfig;
+  repository?: repositoryConfig;
 }
 
 interface modelConfig {
@@ -46,18 +47,26 @@ interface bridgeConfig {
   url: string;
 }
 
+interface repositoryConfig {
+  enabled: boolean;
+  embedder?: string;
+  extractor?: string;
+}
+
 interface Config {
   title: string;
 
   client: Client;
+
+  models: Model[];
 
   tts: boolean;
   stt: boolean;
   voice: boolean;
   
   bridge: Bridge;
+  repository: repositoryConfig;
 
-  models: Model[];
   backgrounds: backgroundPackConfig;
 }
 
@@ -83,12 +92,6 @@ export const loadConfig = async (): Promise<Config | undefined> => {
       
       client: client,
 
-      tts: cfg.tts?.enabled ?? false,
-      stt: cfg.stt?.enabled ?? false,
-      voice: cfg.voice?.enabled ?? false,
-      
-      bridge: bridge,
-
       models: cfg.models?.map((model) => {
         return {
           id: model.id,
@@ -97,6 +100,16 @@ export const loadConfig = async (): Promise<Config | undefined> => {
           description: model.description,
         };
       }) ?? [],
+
+      tts: cfg.tts?.enabled ?? false,
+      stt: cfg.stt?.enabled ?? false,
+      voice: cfg.voice?.enabled ?? false,
+      
+      bridge: bridge,
+
+      repository: cfg.repository ?? {
+        enabled: false
+      },
 
       backgrounds: cfg.backgrounds ?? {},
     }

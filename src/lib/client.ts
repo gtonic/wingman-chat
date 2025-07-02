@@ -2,8 +2,8 @@ import { z } from "zod";
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 
-import { Tool } from "../models/chat";
-import { Message, Model, Role, AttachmentType } from "../models/chat";
+import { Tool } from "../types/chat";
+import { Message, Model, Role, AttachmentType } from "../types/chat";
 
 export class Client {
   private oai: OpenAI;
@@ -24,8 +24,15 @@ export class Client {
     }));
   }
 
-  async complete(model: string, tools: Tool[], input: Message[], handler?: (delta: string, snapshot: string) => void): Promise<Message> {
+  async complete(model: string, instructions: string, input: Message[], tools: Tool[], handler?: (delta: string, snapshot: string) => void): Promise<Message> {
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
+
+    if (instructions) {
+      messages.push({
+        role: "system",
+        content: [{ type: "text", text: instructions }],
+      });
+    }
 
     for (const m of input) {
       const content: OpenAI.Chat.ChatCompletionContentPart[] = [];
@@ -227,6 +234,41 @@ Return only the prompts themselves, without numbering or bullet points.`,
     }
 
     return resp.text();
+  }
+
+  async segmentText(blob: Blob): Promise<string[]> {
+    const data = new FormData();
+    data.append("file", blob);
+
+    const resp = await fetch(new URL("/api/v1/segment", window.location.origin), {
+      method: "POST",
+      body: data,
+    });
+
+    if (!resp.ok) {
+      throw new Error(`Segment request failed with status ${resp.status}`);
+    }
+
+    const result = await resp.json();
+    
+    if (!Array.isArray(result)) {
+       return [];
+    }
+      
+    return result.map((item: { text?: string } | string) => {
+        if (typeof item === 'string') return item;
+        return item.text || '';
+      });
+  }
+
+  async embedText(model: string, text: string): Promise<number[]> {
+    const embedding = await this.oai.embeddings.create({
+      model: model,
+      input: text,
+      encoding_format: "float",
+    });
+
+    return embedding.data[0].embedding;
   }
 
   async translate(lang: string, input: string | Blob): Promise<string | Blob> {

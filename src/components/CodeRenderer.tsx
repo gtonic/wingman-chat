@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from 'react';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 import { CopyButton } from './CopyButton';
 
 interface CodeRendererProps {

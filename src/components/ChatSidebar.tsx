@@ -3,7 +3,7 @@ import { Button, Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react
 import { getConfig } from "../config";
 import { useMemo, useCallback, useState, useEffect } from "react";
 import { useChat } from "../hooks/useChat";
-import { useSidebar } from "../contexts/SidebarContext";
+import { useSidebar } from "../hooks/useSidebar";
 
 export function ChatSidebar() {
   const config = getConfig();

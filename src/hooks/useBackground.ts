@@ -1,20 +1,14 @@
-import { useBackgroundContext } from '../contexts/BackgroundContext';
+import { useContext } from 'react';
+import { BackgroundContext, BackgroundContextValue } from '../contexts/BackgroundContext';
 
 /**
- * Hook to access background settings and pack management.
+ * Hook to access background settings and current wallpaper.
+ * Must be used within a BackgroundProvider.
  */
-export function useBackground() {
-  const {
-    backgroundPacks,
-    backgroundSetting,
-    setBackground,
-    backgroundImage,
-  } = useBackgroundContext();
-
-  return {
-    backgroundImage,
-    backgroundPacks,
-    backgroundSetting,
-    setBackground,
-  };
+export function useBackground(): BackgroundContextValue {
+  const context = useContext(BackgroundContext);
+  if (context === undefined) {
+    throw new Error('useBackground must be used within BackgroundProvider');
+  }
+  return context;
 }

@@ -29,6 +29,10 @@ func main() {
 	stt := os.Getenv("STT_ENABLED") == "true"
 	voice := os.Getenv("VOICE_ENABLED") == "true"
 
+	repository := os.Getenv("REPOSITORY_ENABLED") == "true"
+	repositoryEmbedder := os.Getenv("REPOSITORY_EMBEDDER")
+	repositoryExtractor := os.Getenv("REPOSITORY_EXTRACTOR")
+
 	mux := http.NewServeMux()
 	dist := os.DirFS("dist")
 
@@ -58,6 +62,12 @@ func main() {
 			URL string `json:"url,omitempty" yaml:"url,omitempty"`
 		}
 
+		type repositoryType struct {
+			Enabled   bool   `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+			Embedder  string `json:"embedder,omitempty" yaml:"embedder,omitempty"`
+			Extractor string `json:"extractor,omitempty" yaml:"extractor,omitempty"`
+		}
+
 		type backgroundType struct {
 			URL string `json:"url,omitempty" yaml:"url,omitempty"`
 		}
@@ -71,7 +81,8 @@ func main() {
 			STT   *sttType   `json:"stt,omitempty" yaml:"stt,omitempty"`
 			Voice *voiceType `json:"voice,omitempty" yaml:"voice,omitempty"`
 
-			Bridge *bridgeType `json:"bridge,omitempty" yaml:"bridge,omitempty"`
+			Bridge     *bridgeType     `json:"bridge,omitempty" yaml:"bridge,omitempty"`
+			Repository *repositoryType `json:"repository,omitempty" yaml:"repository,omitempty"`
 
 			Backgrounds map[string][]backgroundType `json:"backgrounds,omitempty" yaml:"backgrounds,omitempty"`
 		}
@@ -109,6 +120,14 @@ func main() {
 		if bridgeURL != "" {
 			config.Bridge = &bridgeType{
 				URL: bridgeURL,
+			}
+		}
+
+		if repository {
+			config.Repository = &repositoryType{
+				Enabled:   true,
+				Embedder:  repositoryEmbedder,
+				Extractor: repositoryExtractor,
 			}
 		}
 
