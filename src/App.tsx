@@ -26,6 +26,36 @@ function AppContent() {
   const { showSidebar, setShowSidebar, toggleSidebar, sidebarContent } = useSidebar();
   const { leftActions, rightActions } = useNavigation();
 
+  // Simple hash-based router
+  useEffect(() => {
+    const getPageFromHash = (hash: string): Page => {
+      switch (hash) {
+        case '#chat':
+          return 'chat';
+        case '#translate':
+          return 'translate';
+        default:
+          return 'chat';
+      }
+    };
+
+    const handleHashChange = () => {
+      const page = getPageFromHash(window.location.hash);
+      setCurrentPage(page);
+    };
+
+    // Set initial page from hash or set default hash if none exists
+    if (!window.location.hash) {
+      window.location.hash = '#chat';
+    } else {
+      handleHashChange();
+    }
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   // Auto-close sidebar on mobile screens on mount and resize
   useEffect(() => {
     const handleResize = () => {
@@ -130,7 +160,10 @@ function AppContent() {
               {pages.map(({ key, label, icon }) => (
                 <Button
                   key={key}
-                  onClick={() => setCurrentPage(key)}
+                  onClick={() => {
+                    setCurrentPage(key);
+                    window.location.hash = `#${key}`;
+                  }}
                   className={`px-3 py-2 font-medium transition-colors flex items-center gap-2 cursor-pointer relative ${
                     currentPage === key
                       ? "text-neutral-900 dark:text-neutral-100"

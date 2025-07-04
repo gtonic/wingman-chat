@@ -268,3 +268,39 @@ button:focus-visible,
 .dark .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.3);
 }
+
+/* Typewriter cursor animation */
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+.typewriter-cursor {
+  animation: blink 1s infinite;
+}
+
+/* CSS-only typewriter effect */
+.typewriter-text {
+  overflow: hidden;
+  white-space: nowrap;
+  margin: 0;
+  animation: 
+    typing var(--animation-duration, 2.5s) steps(var(--text-length, 20), end) 0.5s 1 normal both;
+}
+
+.typewriter-text::after {
+  content: '';
+}
+
+@keyframes typing {
+  from { 
+    width: 0;
+  }
+  to { 
+    width: 100%;
+  }
+}

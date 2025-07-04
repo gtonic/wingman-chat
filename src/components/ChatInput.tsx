@@ -1,4 +1,4 @@
-import { ChangeEvent, useState, FormEvent, useRef, useEffect } from "react";
+import { ChangeEvent, useState, FormEvent, useRef, useEffect, useMemo } from "react";
 import { Button, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 
 import { Send, Paperclip, ScreenShare, Image, X, Brain, File, Loader2, FileText, Lightbulb, Mic, Square, Package } from "lucide-react";
@@ -22,6 +22,7 @@ import { useRepositories } from "../hooks/useRepositories";
 import { useTextPaste } from "../hooks/useTextPaste";
 import { useTranscription } from "../hooks/useTranscription";
 import { useDropZone } from "../hooks/useDropZone";
+import { useSettings } from "../hooks/useSettings";
 
 export function ChatInput() {
   const config = getConfig();
@@ -29,6 +30,7 @@ export function ChatInput() {
 
   const { sendMessage, models, model, setModel: onModelChange, messages } = useChat();
   const { currentRepository, setCurrentRepository } = useRepositories();
+  const { profile } = useSettings();
 
   const [content, setContent] = useState("");
   const [transcribingContent, setTranscribingContent] = useState(false);
@@ -47,6 +49,38 @@ export function ChatInput() {
 
   // Custom hook for plain text paste handling
   const handlePaste = useTextPaste(contentEditableRef, setContent);
+
+  // Generate static random placeholder text for new chats, updates when profile name changes
+  const randomPlaceholder = useMemo(() => {
+    const personalizedVariations = [
+      "Hi [Name], ready to get started?",
+      "Hello [Name], what's on your mind?",
+      "Welcome, [Name]! How can I help?",
+      "Hi [Name], what can I do for you?",
+      "[Name], how can I support you?"
+    ];
+    
+    const genericVariations = [
+      "Ready to get started?",
+      "What's on your mind?",
+      "How can I help you today?",
+      "What can I do for you?",
+      "How can I support you?"
+    ];
+    
+    if (profile?.name) {
+      const randomIndex = Math.floor(Math.random() * personalizedVariations.length);
+      return personalizedVariations[randomIndex].replace('[Name]', profile.name);
+    } else {
+      const randomIndex = Math.floor(Math.random() * genericVariations.length);
+      return genericVariations[randomIndex];
+    }
+  }, [profile?.name]);
+
+  const placeholderText = messages.length === 0 ? randomPlaceholder : "Ask anything";
+  
+  // Simple placeholder - no typewriter for now to avoid flickering
+  const shouldShowPlaceholder = !content.trim();
 
   // Transcription hook
   const { canTranscribe, isTranscribing, startTranscription, stopTranscription } = useTranscription();
@@ -409,31 +443,47 @@ export function ChatInput() {
         )}
 
         {/* Input area */}
-        <div
-          ref={contentEditableRef}
-          className="p-3 md:p-4 flex-1 max-h-[40vh] overflow-y-auto min-h-[2.5rem] whitespace-pre-wrap break-words empty:before:content-[attr(data-placeholder)] empty:before:text-neutral-500 empty:before:dark:text-neutral-400 focus:outline-none text-neutral-800 dark:text-neutral-200"
-          style={{ 
-            scrollbarWidth: "thin",
-            minHeight: "2.5rem",
-            height: "auto"
-          }}
-          role="textbox"
-          contentEditable
-          suppressContentEditableWarning={true}
-          data-placeholder="Ask anything"
-          onInput={(e) => {
-            const target = e.target as HTMLDivElement;
-            const newContent = target.textContent || "";
-            setContent(newContent);
-            
-            // Hide prompt suggestions when user starts typing
-            if (newContent.trim() && showPromptSuggestions) {
-              setShowPromptSuggestions(false);
-            }
-          }}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-        />
+        <div className="relative flex-1">
+          <div
+            ref={contentEditableRef}
+            className="p-3 md:p-4 flex-1 max-h-[40vh] overflow-y-auto min-h-[2.5rem] whitespace-pre-wrap break-words focus:outline-none text-neutral-800 dark:text-neutral-200"
+            style={{ 
+              scrollbarWidth: "thin",
+              minHeight: "2.5rem",
+              height: "auto"
+            }}
+            role="textbox"
+            contentEditable
+            suppressContentEditableWarning={true}
+            onInput={(e) => {
+              const target = e.target as HTMLDivElement;
+              const newContent = target.textContent || "";
+              setContent(newContent);
+              
+              // Hide prompt suggestions when user starts typing
+              if (newContent.trim() && showPromptSuggestions) {
+                setShowPromptSuggestions(false);
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+          />
+          
+          {/* CSS-animated placeholder */}
+          {shouldShowPlaceholder && (
+            <div 
+              className={`absolute top-3 md:top-4 left-3 md:left-4 pointer-events-none text-neutral-500 dark:text-neutral-400 ${
+                messages.length === 0 ? 'typewriter-text' : ''
+              }`}
+              style={messages.length === 0 ? {
+                '--text-length': placeholderText.length,
+                '--animation-duration': `${Math.max(1.5, placeholderText.length * 0.1)}s`
+              } as React.CSSProperties & { '--text-length': number; '--animation-duration': string } : {}}
+            >
+              {placeholderText}
+            </div>
+          )}
+        </div>
 
         {/* Controls */}
         <div className="flex items-center justify-between p-3 pt-0">
@@ -447,31 +497,33 @@ export function ChatInput() {
               <Lightbulb size={16} />
             </Button>
             
-            <Menu>
-              <MenuButton className="flex items-center gap-1 pr-1.5 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 focus:outline-none text-sm cursor-pointer">
-                <Brain size={14} />
-                <span>
-                  {model?.name ?? model?.id ?? "Select Model"}
-                </span>
-              </MenuButton>
-              <MenuItems
-                transition
-                anchor="bottom start"
-                className="sidebar-scroll !max-h-[50vh] mt-2 rounded border bg-white/30 dark:bg-black/25 backdrop-blur-2xl border-white/30 dark:border-white/20 overflow-y-auto shadow-lg z-50"
-              >
-                {models.map((model) => (
-                  <MenuItem key={model.id}>
-                    <Button
-                      onClick={() => onModelChange(model)}
-                      title={model.description}
-                      className="group flex w-full items-center px-4 py-2 data-[focus]:bg-white/40 dark:data-[focus]:bg-black/30 text-neutral-800 dark:text-neutral-200 focus:outline-none cursor-pointer"
-                    >
-                      {model.name ?? model.id}
-                    </Button>
-                  </MenuItem>
-                ))}
-              </MenuItems>
-            </Menu>
+            {models.length > 0 && (
+              <Menu>
+                <MenuButton className="flex items-center gap-1 pr-1.5 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 focus:outline-none text-sm cursor-pointer">
+                  <Brain size={14} />
+                  <span>
+                    {model?.name ?? model?.id ?? "Select Model"}
+                  </span>
+                </MenuButton>
+                <MenuItems
+                  transition
+                  anchor="bottom start"
+                  className="sidebar-scroll !max-h-[50vh] mt-2 rounded border bg-white/30 dark:bg-black/25 backdrop-blur-2xl border-white/30 dark:border-white/20 overflow-y-auto shadow-lg z-50"
+                >
+                  {models.map((model) => (
+                    <MenuItem key={model.id}>
+                      <Button
+                        onClick={() => onModelChange(model)}
+                        title={model.description}
+                        className="group flex w-full items-center px-4 py-2 data-[focus]:bg-white/40 dark:data-[focus]:bg-black/30 text-neutral-800 dark:text-neutral-200 focus:outline-none cursor-pointer"
+                      >
+                        {model.name ?? model.id}
+                      </Button>
+                    </MenuItem>
+                  ))}
+                </MenuItems>
+              </Menu>
+            )}
 
             {currentRepository && (
               <div className="group flex items-center gap-1 px-2 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 text-sm cursor-pointer">
