@@ -68,6 +68,12 @@ func main() {
 			Extractor string `json:"extractor,omitempty" yaml:"extractor,omitempty"`
 		}
 
+		type translatorType struct {
+			Enabled   bool     `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+			Files     []string `json:"files,omitempty" yaml:"files,omitempty"`
+			Languages []string `json:"languages,omitempty" yaml:"languages,omitempty"`
+		}
+
 		type backgroundType struct {
 			URL string `json:"url,omitempty" yaml:"url,omitempty"`
 		}
@@ -83,6 +89,7 @@ func main() {
 
 			Bridge     *bridgeType     `json:"bridge,omitempty" yaml:"bridge,omitempty"`
 			Repository *repositoryType `json:"repository,omitempty" yaml:"repository,omitempty"`
+			Translator *translatorType `json:"translator,omitempty" yaml:"translator,omitempty"`
 
 			Backgrounds map[string][]backgroundType `json:"backgrounds,omitempty" yaml:"backgrounds,omitempty"`
 		}
@@ -93,6 +100,11 @@ func main() {
 
 		if data, err := os.ReadFile("models.yaml"); err == nil {
 			yaml.Unmarshal(data, &config.Models)
+		}
+
+		if data, err := os.ReadFile("translator.yaml"); err == nil {
+			yaml.Unmarshal(data, &config.Translator)
+			config.Translator.Enabled = true
 		}
 
 		if data, err := os.ReadFile("backgrounds.yaml"); err == nil {

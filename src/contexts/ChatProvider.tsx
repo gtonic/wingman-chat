@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Message, Model, Tool, Role } from "../types/chat";
 import { useModels } from "../hooks/useModels";
 import { useChats } from "../hooks/useChats";
@@ -22,15 +22,23 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const { currentRepository } = useRepositories();
   const { queryTools } = useRepository(currentRepository?.id || '');
   const { bridgeTools } = useBridge();
-  const { settings: profile, generateInstructions } = useProfile();
+  const { generateInstructions } = useProfile();
   const [chatId, setChatId] = useState<string | null>(null);
+  const messagesRef = useRef<Message[]>([]);
 
   const chat = chats.find(c => c.id === chatId) ?? null;
   const model = chat?.model ?? selectedModel ?? models[0];
-  const messages = chat?.messages ?? [];
+  const messages = useMemo(() => {
+    const msgs = chat?.messages ?? [];
+    messagesRef.current = msgs;
+    return msgs;
+  }, [chat?.messages]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
 
-  // Handler functions with stable references
   const createChat = useCallback(() => {
     const newChat = createChatHook();
     setChatId(newChat.id);
@@ -51,18 +59,14 @@ export function ChatProvider({ children }: ChatProviderProps) {
     [deleteChatHook, chatId]
   );
 
-  // Unified setModel function that does the right thing based on context
   const setModel = useCallback((model: Model | null) => {
     if (chat) {
-      // Update existing chat's model
       updateChat(chat.id, { model });
     } else {
-      // Store selected model for when a new chat is created
       setSelectedModel(model);
     }
   }, [chat, updateChat, setSelectedModel]);
 
-  // Helper to get or create a chat and its id
   const getOrCreateChat = useCallback(() => {
     if (!model) {
       throw new Error('no model selected');
@@ -86,13 +90,15 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   const addMessage = useCallback(
     (message: Message) => {
-      if (!message.content.trim()) return;
-
       const { id } = getOrCreateChat();
-      const existingMessages = chats.find(c => c.id === id)?.messages || [];
-      updateChat(id, { messages: [...existingMessages, message] });
+      
+      const currentMessages = messagesRef.current;
+      const updatedMessages = [...currentMessages, message];
+      
+      messagesRef.current = updatedMessages;
+      updateChat(id, { messages: updatedMessages });
     },
-    [getOrCreateChat, updateChat, chats]
+    [getOrCreateChat, updateChat]
   );
 
   const sendMessage = useCallback(
@@ -101,19 +107,17 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
       const existingMessages = chats.find(c => c.id === id)?.messages || [];
       const conversation = [...existingMessages, message];
-      const updateMessages = (msgs: Message[]) => updateChat(id, { messages: msgs });
 
-      updateMessages([...conversation, { role: Role.Assistant, content: '' }]);
+      updateChat(id, { messages: [...conversation, { role: Role.Assistant, content: '' }] });
 
       try {
-        // Get repository tools dynamically
         const repositoryTools = currentRepository ? queryTools() : [];
         const completionTools = [...bridgeTools, ...repositoryTools, ...(tools || [])];
 
         let instructions = '';
 
-        // Add profile instructions first if they exist
         const profileInstructions = generateInstructions();
+
         if (profileInstructions.trim()) {
           instructions = profileInstructions + '\n\n';
         }
@@ -138,10 +142,10 @@ export function ChatProvider({ children }: ChatProviderProps) {
           instructions,
           conversation,
           completionTools,
-          (_, snapshot) => updateMessages([...conversation, { role: Role.Assistant, content: snapshot }])
+          (_, snapshot) => updateChat(id, { messages: [...conversation, { role: Role.Assistant, content: snapshot }] })
         );
 
-        updateMessages([...conversation, completion]);
+        updateChat(id, { messages: [...conversation, completion] });
 
         if (!chatObj.title || conversation.length % 3 === 0) {
           client
@@ -154,9 +158,9 @@ export function ChatProvider({ children }: ChatProviderProps) {
         if (error?.toString().includes('missing finish_reason')) return;
 
         const errorMessage = { role: Role.Assistant, content: `An error occurred:\n${error}` };
-        updateMessages([...conversation, errorMessage]);
+        updateChat(id, { messages: [...conversation, errorMessage] });
       }
-    }, [getOrCreateChat, chats, updateChat, currentRepository, queryTools, bridgeTools, profile, generateInstructions, client, model]);
+    }, [getOrCreateChat, chats, updateChat, currentRepository, queryTools, bridgeTools, generateInstructions, client, model]);
 
   const value: ChatContextType = {
     // Models

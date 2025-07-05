@@ -19,11 +19,12 @@ export function TranslatePage() {
     sourceText,
     translatedText,
     isLoading,
-    languages,
+    supportedLanguages,
     selectedLanguage,
     selectedFile,
     translatedFileUrl,
     translatedFileName,
+    supportedFiles,
     setSourceText,
     setTargetLang,
     performTranslate,
@@ -39,17 +40,19 @@ export function TranslatePage() {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Check if file type is allowed
-      const allowedTypes = [
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' // xlsx
-      ];
+      // Get allowed MIME types from supported files
+      const allowedMimeTypes = supportedFiles.map(sf => sf.mime);
       
-      if (allowedTypes.includes(file.type)) {
+      if (allowedMimeTypes.length === 0) {
+        // If no supported files, don't allow file selection
+        return;
+      }
+      
+      if (allowedMimeTypes.includes(file.type)) {
         selectFile(file);
       } else {
-        alert('Please select a valid file type: .docx, .pptx, or .xlsx');
+        const supportedExtensions = supportedFiles.map(sf => sf.ext).join(', ');
+        alert(`Please select a valid file type: ${supportedExtensions}`);
       }
     }
   };
@@ -66,16 +69,19 @@ export function TranslatePage() {
   };
 
   const handleDropFiles = (files: File[]) => {
-    const allowedTypes = [
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ];
-    const file = files.find(f => allowedTypes.includes(f.type));
+    const allowedMimeTypes = supportedFiles.map(sf => sf.mime);
+    
+    if (allowedMimeTypes.length === 0) {
+      // If no supported files, don't allow file drop
+      return;
+    }
+    
+    const file = files.find(f => allowedMimeTypes.includes(f.type));
     if (file) {
       selectFile(file);
     } else {
-      alert('Please drop a valid file type: .docx, .pptx, or .xlsx');
+      const supportedExtensions = supportedFiles.map(sf => sf.ext).join(', ');
+      alert(`Please drop a valid file type: ${supportedExtensions}`);
     }
   };
 
@@ -149,33 +155,36 @@ export function TranslatePage() {
                 >
                   {/* File upload controls */}
                   <div className="absolute top-2 left-4 z-10">
-                    {!selectedFile && (
+                    {!selectedFile && supportedFiles.length > 0 && (
                       <Button
                         onClick={handleFileUploadClick}
                         className="inline-flex items-center gap-1 pl-0.5 pr-2 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 cursor-pointer focus:outline-none text-sm transition-colors"
-                        title="Select a file to translate (.docx, .pptx, .xlsx)"
+                        title={`Select a file to translate (${supportedFiles.map(sf => sf.ext).join(', ')})`}
                       >
                         <UploadIcon size={14} />
                         <span>Upload file</span>
                       </Button>
                     )}
+                    {!selectedFile && supportedFiles.length === 0 && (
+                      <div className="h-8"></div>
+                    )}
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".docx,.pptx,.xlsx"
+                      accept={supportedFiles.map(sf => sf.ext).join(',')}
                       onChange={handleFileSelect}
                       className="hidden"
                     />
                   </div>
                   
                   {/* Drop zone overlay */}
-                  {isDragging && (
+                  {isDragging && supportedFiles.length > 0 && (
                     <div className="absolute inset-0 bg-gradient-to-r from-slate-500/20 via-slate-600/30 to-slate-500/20 dark:from-slate-400/20 dark:via-slate-500/30 dark:to-slate-400/20 rounded-lg flex flex-col items-center justify-center pointer-events-none z-20 backdrop-blur-sm">
                       <div className="text-slate-700 dark:text-slate-300 font-semibold text-lg text-center">
                         Drop files here
                       </div>
                       <div className="text-slate-600 dark:text-slate-400 text-sm mt-1 text-center">
-                        .docx, .pptx, and .xlsx files supported
+                        {supportedFiles.map(sf => sf.ext).join(', ')} files supported
                       </div>
                     </div>
                   )}
@@ -246,7 +255,7 @@ export function TranslatePage() {
                         anchor="bottom start"
                         className="!max-h-[50vh] mt-2 rounded-lg bg-neutral-50/90 dark:bg-neutral-900/90 backdrop-blur-lg border border-neutral-200 dark:border-neutral-700 overflow-y-auto shadow-lg z-50"
                       >
-                        {languages.map((lang) => (
+                        {supportedLanguages.map((lang) => (
                           <MenuItem key={lang.code}>
                             <Button
                               onClick={() => setTargetLang(lang.code)}

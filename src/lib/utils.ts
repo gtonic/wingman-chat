@@ -1,3 +1,10 @@
+import mime from 'mime';
+
+export function lookupContentType(ext: string): string {
+  const normalizedExt = ext.startsWith('.') ? ext : `.${ext}`;
+  return mime.getType(normalizedExt) || 'application/octet-stream';
+}
+
 export function readAsText(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

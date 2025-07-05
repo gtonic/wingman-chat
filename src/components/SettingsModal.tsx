@@ -6,9 +6,7 @@ import { useChat } from '../hooks/useChat';
 import { useRepositories } from '../hooks/useRepositories';
 import { getStorageUsage } from '../lib/db';
 import { formatBytes } from '../lib/utils';
-import type { Theme } from '../contexts/ThemeContext';
-import type { LayoutMode } from '../types/settings';
-import type { BackgroundPack } from '../contexts/BackgroundContext';
+import type { Theme, LayoutMode, BackgroundPack } from '../types/settings';
 
 interface SettingsModalProps {
   isOpen: boolean;

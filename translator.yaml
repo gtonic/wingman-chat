@@ -1,0 +1,14 @@
+files:
+- .txt
+- .md
+- .pdf
+- .docx
+- .pptx
+- .xlsx
+
+languages:
+- en
+- de
+- fr
+- it
+- es

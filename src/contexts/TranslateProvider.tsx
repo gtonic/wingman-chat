@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, ReactNode } from "react";
 import { getConfig } from "../config";
-import { TranslateContext, TranslateContextType, LANGUAGES } from './TranslateContext';
+import { TranslateContext, TranslateContextType, supportedLanguages, supportedFiles } from './TranslateContext';
 
 interface TranslateProviderProps {
   children: ReactNode;
@@ -33,7 +33,7 @@ export function TranslateProvider({ children }: TranslateProviderProps) {
   }, [targetLang]);
 
   // Derived state
-  const selectedLanguage = LANGUAGES.find(l => l.code === targetLang);
+  const selectedLanguage = supportedLanguages().find(l => l.code === targetLang);
 
   // Actions with stable references
   const performTranslate = useCallback(async (langCode?: string, textToTranslate?: string) => {
@@ -172,8 +172,9 @@ export function TranslateProvider({ children }: TranslateProviderProps) {
     translatedFileName,
     
     // Data
-    languages: LANGUAGES,
+    supportedLanguages: supportedLanguages(),
     selectedLanguage,
+    supportedFiles: supportedFiles(),
     
     // Actions
     setSourceText,

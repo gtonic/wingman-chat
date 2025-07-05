@@ -22,6 +22,7 @@ interface config {
   
   bridge?: bridgeConfig;
   repository?: repositoryConfig;
+  translator?: translatorConfig;
 }
 
 interface modelConfig {
@@ -53,6 +54,12 @@ interface repositoryConfig {
   extractor?: string;
 }
 
+interface translatorConfig {
+  enabled: boolean;
+  files: string[];
+  languages: string[];
+}
+
 interface Config {
   title: string;
 
@@ -66,6 +73,7 @@ interface Config {
   
   bridge: Bridge;
   repository: repositoryConfig;
+  translator: translatorConfig; 
 
   backgrounds: backgroundPackConfig;
 }
@@ -109,6 +117,27 @@ export const loadConfig = async (): Promise<Config | undefined> => {
 
       repository: cfg.repository ?? {
         enabled: false
+      },
+
+      translator: cfg.translator ?? {
+        enabled: true,
+
+        files: [
+          // ".txt",
+          // ".md",
+          // ".pdf",
+          // ".docx",
+          // ".pptx",
+          // ".xlsx",
+        ],
+        
+        languages: [
+          "en",
+          "de",
+          "fr",
+          "it",
+          "es",
+        ],
       },
 
       backgrounds: cfg.backgrounds ?? {},

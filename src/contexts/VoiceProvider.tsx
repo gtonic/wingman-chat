@@ -12,7 +12,7 @@ interface VoiceProviderProps {
 export function VoiceProvider({ children }: VoiceProviderProps) {
   const [isListening, setIsListening] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
-  const { addMessage } = useChat();
+  const { addMessage, messages } = useChat();
   
   // Check voice availability from config
   useEffect(() => {
@@ -87,7 +87,7 @@ export function VoiceProvider({ children }: VoiceProviderProps) {
     }
   }, [addMessage]);
 
-  const { start, stop } = useVoiceWebSockets(onUserTranscript, onAssistantTranscript);
+  const { start, stop } = useVoiceWebSockets(onUserTranscript, onAssistantTranscript, messages);
 
   const stopVoice = useCallback(async () => {
     await stop();

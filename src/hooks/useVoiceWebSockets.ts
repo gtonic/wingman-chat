@@ -1,12 +1,14 @@
 import { useRef } from 'react';
 import { WavStreamPlayer, WavRecorder } from 'wavtools';
+import { Message } from '../types/chat';
 
 /**
  * Hook to manage OpenAI Realtime voice streaming via WebSockets with PCM16.
  */
 export function useVoiceWebSockets(
   onUser: (text: string) => void,
-  onAssistant: (text: string) => void
+  onAssistant: (text: string) => void,
+  messages?: Message[]
 ) {
   const wsRef = useRef<WebSocket | null>(null);
   const wavPlayerRef = useRef<WavStreamPlayer | null>(null);
@@ -50,14 +52,14 @@ export function useVoiceWebSockets(
           type: 'session.update',
           session: {
             voice: 'alloy',
-            
+
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
 
             input_audio_transcription: {
               model: transcribeModel,
             },
-            
+
             turn_detection: {
               type: 'semantic_vad',
               create_response: true,
@@ -67,6 +69,30 @@ export function useVoiceWebSockets(
         };
 
         ws.send(JSON.stringify(sessionUpdate));
+
+        if (messages && messages.length > 0) {
+          console.log(`Adding ${messages.length} messages to conversation history`);
+
+          messages.forEach((message) => {
+            const conversationItem = {
+              type: 'conversation.item.create',
+              item: {
+                type: 'message',
+                role: message.role,
+                content: [
+                  {
+                    type: message.role === 'user' ? 'input_text' : 'text',
+                    text: message.content ?? ''
+                  }
+                ]
+              }
+            };
+
+            ws.send(JSON.stringify(conversationItem));
+          });
+
+          console.log('Chat history added to conversation');
+        }
 
         // Start recording immediately after WebSocket connects
         console.log('Starting audio recording after WebSocket connection...');
@@ -118,7 +144,7 @@ export function useVoiceWebSockets(
             console.log('User started speaking, audio playback will be interrupted');
             wavPlayerRef.current?.interrupt();
             break;
-          
+
           case 'input_audio_buffer.speech_stopped':
             console.log('User stopped speaking, audio playback can resume');
             // reset track ID so that subsequent add16BitPCM restarts playback
@@ -135,12 +161,12 @@ export function useVoiceWebSockets(
               onUser(msg.transcript);
             }
             break;
-          
+
           case 'response.audio.delta':
             if (msg.delta) {
               playAudioChunk(msg.delta);
             }
-            
+
             break;
 
           case 'response.done':
@@ -184,7 +210,7 @@ export function useVoiceWebSockets(
     if (wavRecorderRef.current) {
       try {
         console.log('Stopping audio recorder...');
-        
+
         // End the recording session
         await wavRecorderRef.current.end();
         wavRecorderRef.current = null;
