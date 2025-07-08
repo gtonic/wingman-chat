@@ -21,7 +21,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const { chats, createChat: createChatHook, updateChat, deleteChat: deleteChatHook } = useChats();
   const { currentRepository } = useRepositories();
   const { queryTools } = useRepository(currentRepository?.id || '');
-  const { bridgeTools } = useBridge();
+  const { bridgeTools, bridgeInstructions } = useBridge();
   const { generateInstructions } = useProfile();
   const [chatId, setChatId] = useState<string | null>(null);
   const messagesRef = useRef<Message[]>([]);
@@ -37,7 +37,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
-
 
   const createChat = useCallback(() => {
     const newChat = createChatHook();
@@ -114,16 +113,20 @@ export function ChatProvider({ children }: ChatProviderProps) {
         const repositoryTools = currentRepository ? queryTools() : [];
         const completionTools = [...bridgeTools, ...repositoryTools, ...(tools || [])];
 
-        let instructions = '';
+        const instructions: string[] = [];
+
+        if (bridgeInstructions) {
+          instructions.push(bridgeInstructions);
+        }
 
         const profileInstructions = generateInstructions();
 
         if (profileInstructions.trim()) {
-          instructions = profileInstructions + '\n\n';
+          instructions.push(profileInstructions);
         }
 
         if (repositoryTools.length > 0) {
-          instructions += `You are an intelligent document-retrieval assistant.
+          instructions.push(`You are an intelligent document-retrieval assistant.
 
           Your mission:
           1. For *every* user query, you MUST first invoke the \`query_knowledge_database\` tool with a concise, natural-language query.
@@ -134,12 +137,12 @@ export function ChatProvider({ children }: ChatProviderProps) {
           4. If the tool call fails, report the failure and either retry or ask the user to clarify.
           5. Be concise, accurate, and transparent about sources.
 
-          Use GitHub Flavored Markdown to format your responses including tables, code blocks, links, and lists.`;
+          Use GitHub Flavored Markdown to format your responses including tables, code blocks, links, and lists.`);
         }
 
         const completion = await client.complete(
           model!.id,
-          instructions,
+          instructions.join('\n\n'),
           conversation,
           completionTools,
           (_, snapshot) => updateChat(id, { messages: [...conversation, { role: Role.Assistant, content: snapshot }] })
@@ -160,7 +163,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
         const errorMessage = { role: Role.Assistant, content: `An error occurred:\n${error}` };
         updateChat(id, { messages: [...conversation, errorMessage] });
       }
-    }, [getOrCreateChat, chats, updateChat, currentRepository, queryTools, bridgeTools, generateInstructions, client, model]);
+    }, [getOrCreateChat, chats, updateChat, currentRepository, queryTools, bridgeTools, generateInstructions, client, model, bridgeInstructions]);
 
   const value: ChatContextType = {
     // Models

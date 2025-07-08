@@ -11,10 +11,11 @@ export function BridgeProvider({ children }: BridgeProviderProps) {
   const config = getConfig();
   const bridge = config.bridge;
   const [bridgeTools, setBridgeTools] = useState<Tool[]>([]);
+  const [bridgeInstructions, setBridgeInstructions] = useState<string | null>(bridge.getInstructions());
 
   // Fetch bridge tools when bridge is connected
   useEffect(() => {
-    const fetchTools = async () => {
+    const updateBridge = async () => {
       if (bridge.isConnected()) {
         try {
           const tools = await bridge.listTools();
@@ -26,17 +27,22 @@ export function BridgeProvider({ children }: BridgeProviderProps) {
       } else {
         setBridgeTools([]);
       }
+      
+      // Update instructions (can be available even when not connected)
+      const instructions = bridge.getInstructions();
+      setBridgeInstructions(instructions);
     };
 
-    fetchTools();
+    updateBridge();
     
-    const interval = setInterval(fetchTools, 5000);    
+    const interval = setInterval(updateBridge, 5000);    
     return () => clearInterval(interval);
   }, [bridge]);
 
   const value: BridgeContextType = {
-    bridgeTools,
     isConnected: bridge.isConnected(),
+    bridgeTools,
+    bridgeInstructions,
   };
 
   return <BridgeContext.Provider value={value}>{children}</BridgeContext.Provider>;

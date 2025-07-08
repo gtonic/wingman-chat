@@ -5,7 +5,7 @@ import { RepositoryContext, RepositoryContextType } from './RepositoryContext';
 import { getConfig } from '../config';
 
 const REPOSITORIES_DB_KEY = 'repositories';
-const REPOSITORY_STORAGE_KEY = 'app_project';
+const REPOSITORY_STORAGE_KEY = 'app_repository';
 
 export function RepositoryProvider({ children }: { children: ReactNode }) {
   const [repositories, setRepositories] = useState<Repository[]>([]);

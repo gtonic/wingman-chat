@@ -5,6 +5,8 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 
 interface BridgeConfig {
   name: string;
+
+  instructions?: string; 
 }
 
 interface ToolTextResult {
@@ -14,6 +16,7 @@ interface ToolTextResult {
 
 export class Bridge {
     private mcp: Client | undefined;
+    private instructions: string | null = null;
 
     private constructor(mcp?: Client) {
         this.mcp = mcp;
@@ -37,6 +40,8 @@ export class Bridge {
 
                 const config : BridgeConfig = await response.json();
                 console.log("Bridge config", config);
+                
+                bridge.instructions = config.instructions || null;
             } catch {
                 return;
             }
@@ -118,5 +123,9 @@ export class Bridge {
                 },
             };
         });
+    }
+
+    public getInstructions(): string | null {
+        return this.instructions;
     }
 }

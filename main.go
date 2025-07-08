@@ -27,7 +27,9 @@ func main() {
 
 	tts := os.Getenv("TTS_ENABLED") == "true"
 	stt := os.Getenv("STT_ENABLED") == "true"
+
 	voice := os.Getenv("VOICE_ENABLED") == "true"
+	vision := os.Getenv("VISION_ENABLED") == "true"
 
 	repository := os.Getenv("REPOSITORY_ENABLED") == "true"
 	repositoryEmbedder := os.Getenv("REPOSITORY_EMBEDDER")
@@ -58,6 +60,10 @@ func main() {
 			Enabled bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 		}
 
+		type visionType struct {
+			Enabled bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+		}
+
 		type bridgeType struct {
 			URL string `json:"url,omitempty" yaml:"url,omitempty"`
 		}
@@ -83,9 +89,10 @@ func main() {
 
 			Models []modelType `json:"models,omitempty" yaml:"models,omitempty"`
 
-			TTS   *ttsType   `json:"tts,omitempty" yaml:"tts,omitempty"`
-			STT   *sttType   `json:"stt,omitempty" yaml:"stt,omitempty"`
-			Voice *voiceType `json:"voice,omitempty" yaml:"voice,omitempty"`
+			TTS    *ttsType    `json:"tts,omitempty" yaml:"tts,omitempty"`
+			STT    *sttType    `json:"stt,omitempty" yaml:"stt,omitempty"`
+			Voice  *voiceType  `json:"voice,omitempty" yaml:"voice,omitempty"`
+			Vision *visionType `json:"vision,omitempty" yaml:"vision,omitempty"`
 
 			Bridge     *bridgeType     `json:"bridge,omitempty" yaml:"bridge,omitempty"`
 			Repository *repositoryType `json:"repository,omitempty" yaml:"repository,omitempty"`
@@ -125,6 +132,12 @@ func main() {
 
 		if voice {
 			config.Voice = &voiceType{
+				Enabled: true,
+			}
+		}
+
+		if vision {
+			config.Vision = &visionType{
 				Enabled: true,
 			}
 		}

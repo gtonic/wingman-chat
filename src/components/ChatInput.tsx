@@ -534,7 +534,7 @@ export function ChatInput() {
                 <button
                   onClick={() => setCurrentRepository(null)}
                   className="opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all ml-1"
-                  title="Clear project"
+                  title="Clear repository"
                 >
                   <X size={10} />
                 </button>
@@ -543,7 +543,7 @@ export function ChatInput() {
           </div>
 
           <div className="flex items-center gap-1">
-            {supportsScreenshot() && (
+            {config.vision && supportsScreenshot() && (
               <Button
                 type="button"
                 className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 focus:outline-none cursor-pointer"

@@ -19,6 +19,7 @@ interface config {
   tts?: ttsConfig;
   stt?: sttConfig;
   voice?: voiceConfig;
+  vision?: visionConfig;
   
   bridge?: bridgeConfig;
   repository?: repositoryConfig;
@@ -41,6 +42,10 @@ interface sttConfig {
 }
 
 interface voiceConfig {
+  enabled: boolean;
+}
+
+interface visionConfig {
   enabled: boolean;
 }
 
@@ -70,6 +75,7 @@ interface Config {
   tts: boolean;
   stt: boolean;
   voice: boolean;
+  vision: boolean;
   
   bridge: Bridge;
   repository: repositoryConfig;
@@ -111,7 +117,9 @@ export const loadConfig = async (): Promise<Config | undefined> => {
 
       tts: cfg.tts?.enabled ?? false,
       stt: cfg.stt?.enabled ?? false,
+      
       voice: cfg.voice?.enabled ?? false,
+      vision: cfg.vision?.enabled ?? false,
       
       bridge: bridge,
 

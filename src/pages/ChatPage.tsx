@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { Plus as PlusIcon, Mic, MicOff, Package, PackageOpen } from "lucide-react";
-import { Button } from "@headlessui/react";
+import { Plus as PlusIcon, Mic, MicOff, Package, PackageOpen, AlertTriangle } from "lucide-react";
+import { Button, Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { useAutoScroll } from "../hooks/useAutoScroll";
 import { useSidebar } from "../hooks/useSidebar";
 import { useNavigation } from "../hooks/useNavigation";
@@ -26,13 +26,16 @@ export function ChatPage() {
   
   const { layoutMode } = useLayout();
   const { isAvailable: voiceAvailable, startVoice, stopVoice } = useVoice();
-  const { isAvailable: repositoryAvailable, toggleRepositoryDrawer, showRepositoryDrawer } = useRepositories();
+  const { isAvailable: repositoryAvailable, toggleRepositoryDrawer, showRepositoryDrawer, setShowRepositoryDrawer, setCurrentRepository } = useRepositories();
   
   // Only need backgroundImage to check if background should be shown
   const { backgroundImage } = useBackground();
   
   // Local state for voice mode (UI state)
   const [isVoiceMode, setIsVoiceMode] = useState(false);
+  
+  // Voice mode preview dialog state
+  const [showVoicePreviewDialog, setShowVoicePreviewDialog] = useState(false);
   
   // Repository drawer state
   const [isRepositoryDrawerAnimating, setIsRepositoryDrawerAnimating] = useState(false);
@@ -44,10 +47,21 @@ export function ChatPage() {
       await stopVoice();
       setIsVoiceMode(false);
     } else {
-      await startVoice();
-      setIsVoiceMode(true);
+      // Show preview dialog before starting voice mode
+      setShowVoicePreviewDialog(true);
     }
-  }, [isVoiceMode, startVoice, stopVoice]);
+  }, [isVoiceMode, stopVoice]);
+  
+  // Start voice mode after dialog confirmation
+  const startVoiceMode = useCallback(async () => {
+    setShowVoicePreviewDialog(false);
+    
+    setShowRepositoryDrawer(false);
+    setCurrentRepository(null);
+    
+    await startVoice();
+    setIsVoiceMode(true);
+  }, [startVoice, setShowRepositoryDrawer, setCurrentRepository]);
   
   // Sidebar integration (now only controls visibility)
   const { setSidebarContent } = useSidebar();
@@ -256,6 +270,62 @@ export function ChatPage() {
           <RepositoryDrawer />
         </div>
       )}
+
+      {/* Voice Mode Preview Dialog */}
+      <Dialog open={showVoicePreviewDialog} onClose={() => setShowVoicePreviewDialog(false)} className="relative z-50">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="w-full max-w-md rounded-xl bg-white dark:bg-neutral-900 p-6 shadow-2xl border border-neutral-200 dark:border-neutral-800">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="h-6 w-6 text-amber-500" />
+              </div>
+              <DialogTitle className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                Voice Mode Early Preview
+              </DialogTitle>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
+                The following features are currently not supported:
+              </p>
+              <ul className="text-sm text-neutral-700 dark:text-neutral-300 space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="text-neutral-400 dark:text-neutral-500 mt-1">•</span>
+                  <span>Prompt personalization</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-neutral-400 dark:text-neutral-500 mt-1">•</span>
+                  <span>Document repositories</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-neutral-400 dark:text-neutral-500 mt-1">•</span>
+                  <span>Specialized models & tools</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-neutral-400 dark:text-neutral-500 mt-1">•</span>
+                  <span>Bridge (Local Connector)</span>
+                </li>
+              </ul>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <Button
+                onClick={() => setShowVoicePreviewDialog(false)}
+                className="px-4 py-2 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={startVoiceMode}
+                className="px-4 py-2 text-sm font-medium bg-neutral-800 hover:bg-neutral-900 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-white rounded-lg transition-colors cursor-pointer"
+              >
+                Continue
+              </Button>
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
     </div>
   );
 }

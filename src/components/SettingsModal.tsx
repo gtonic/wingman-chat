@@ -1,11 +1,12 @@
 import { Fragment, useState, useEffect } from 'react';
-import { X, Settings, MessageSquare, Trash2, ChevronsUpDown, Check, User, Database } from 'lucide-react';
+import { X, Settings, MessageSquare, Trash2, ChevronsUpDown, Check, User, Package } from 'lucide-react';
 import { Dialog, Transition, Listbox } from '@headlessui/react';
 import { useSettings } from '../hooks/useSettings';
 import { useChat } from '../hooks/useChat';
 import { useRepositories } from '../hooks/useRepositories';
 import { getStorageUsage } from '../lib/db';
 import { formatBytes } from '../lib/utils';
+import { getConfig } from '../config';
 import type { Theme, LayoutMode, BackgroundPack } from '../types/settings';
 
 interface SettingsModalProps {
@@ -22,13 +23,6 @@ const themeOptions: { value: Theme; label: string }[] = [
 const layoutOptions: { value: LayoutMode; label: string }[] = [
   { value: 'normal', label: 'Normal' },
   { value: 'wide', label: 'Wide' },
-];
-
-const sections = [
-  { id: 'general', label: 'General', icon: Settings },
-  { id: 'chats', label: 'Chats', icon: MessageSquare },
-  { id: 'profile', label: 'Profile', icon: User },
-  { id: 'storage', label: 'Storage', icon: Database },
 ];
 
 // A generic, reusable Select component using Headless UI Listbox
@@ -86,40 +80,53 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     error: null,
   });
 
+  // Create sections array dynamically based on config
+  const sections = [
+    { id: 'general', label: 'General', icon: Settings },
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'chats', label: 'Chats', icon: MessageSquare },
+    ...(getConfig().repository.enabled ? [{ id: 'repositories', label: 'Repositories', icon: Package }] : []),
+  ];
+
   // Load storage info when modal opens
   useEffect(() => {
     if (isOpen) {
-      const loadStorageInfo = async () => {
-        try {
-          setStorageInfo(prev => ({ ...prev, isLoading: true, error: null }));
-          const usage = await getStorageUsage();
-          setStorageInfo({
-            totalSize: usage.totalSize,
-            entries: usage.entries,
-            isLoading: false,
-            error: null,
-          });
-        } catch (error) {
-          setStorageInfo(prev => ({
-            ...prev,
-            isLoading: false,
-            error: error instanceof Error ? error.message : 'Failed to load storage info',
-          }));
-        }
-      };
       loadStorageInfo();
     }
   }, [isOpen]);
 
-  const handleDeleteAllChats = () => {
-    if (window.confirm(`Are you sure you want to delete all ${chats.length} chat${chats.length === 1 ? '' : 's'}? This action cannot be undone.`)) {
-      chats.forEach(chat => deleteChat(chat.id));
+  const loadStorageInfo = async () => {
+    try {
+      setStorageInfo(prev => ({ ...prev, isLoading: true, error: null }));
+      const usage = await getStorageUsage();
+      setStorageInfo({
+        totalSize: usage.totalSize,
+        entries: usage.entries,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      setStorageInfo(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to load storage info',
+      }));
     }
   };
 
-  const handleDeleteAllProjects = () => {
-    if (window.confirm(`Are you sure you want to delete all ${repositories.length} project${repositories.length === 1 ? '' : 's'}? This action cannot be undone and will remove all files in these projects.`)) {
+  const deleteChats = () => {
+    if (window.confirm(`Are you sure you want to delete all ${chats.length} chat${chats.length === 1 ? '' : 's'}? This action cannot be undone.`)) {
+      chats.forEach(chat => deleteChat(chat.id));
+      // Recalculate storage after deletion
+      setTimeout(() => loadStorageInfo(), 750);
+    }
+  };
+
+  const deleteRepositories = () => {
+    if (window.confirm(`Are you sure you want to delete all ${repositories.length} repositor${repositories.length === 1 ? 'y' : 'ies'}? This action cannot be undone and will remove all files in these repositories.`)) {
       repositories.forEach(repo => deleteRepository(repo.id));
+      // Recalculate storage after deletion
+      setTimeout(() => loadStorageInfo(), 750);
     }
   };
 
@@ -213,14 +220,30 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       case 'chats':
         return (
           <div className="space-y-6">
-            {/* Chat Management */}
+            {/* Storage Usage Information */}
             <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-1">Storage Usage</h3>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  {storageInfo.isLoading ? (
+                    'Calculating storage usage...'
+                  ) : storageInfo.error ? (
+                    `Error: ${storageInfo.error}`
+                  ) : (
+                    `Local database: ${formatBytes(storageInfo.entries.find(e => e.key.includes('chat'))?.size || 0)}`
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Chat Management */}
+            <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4 space-y-4">
               <div>
                 <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-1">Chat Management</h3>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">You have {chats.length} chat{chats.length === 1 ? '' : 's'} saved locally.</p>
               </div>
               <button
-                onClick={handleDeleteAllChats}
+                onClick={deleteChats}
                 disabled={chats.length === 0}
                 className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800 disabled:bg-neutral-100 dark:disabled:bg-neutral-800 disabled:text-neutral-400 dark:disabled:text-neutral-600 disabled:cursor-not-allowed disabled:border-transparent"
               >
@@ -230,7 +253,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </div>
           </div>
         );
-      case 'storage':
+      case 'repositories':
         return (
           <div className="space-y-6">
             {/* Storage Usage Information */}
@@ -243,41 +266,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   ) : storageInfo.error ? (
                     `Error: ${storageInfo.error}`
                   ) : (
-                    `Total IndexedDB usage: ${formatBytes(storageInfo.totalSize)}`
+                    `Local database: ${formatBytes(storageInfo.entries.find(e => e.key.includes('repo'))?.size || 0)}`
                   )}
                 </p>
               </div>
-              
-              {!storageInfo.isLoading && !storageInfo.error && storageInfo.entries.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Storage Breakdown:</h4>
-                  <div className="space-y-1 text-xs">
-                    {storageInfo.entries
-                      .sort((a, b) => a.key.localeCompare(b.key))
-                      .map((entry) => (
-                        <div key={entry.key} className="flex justify-between text-neutral-600 dark:text-neutral-400">
-                          <span className="truncate flex-1 mr-2">{entry.key}</span>
-                          <span className="flex-shrink-0">{formatBytes(entry.size)}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* Project Management */}
+            {/* Repository Management */}
             <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4 space-y-4">
               <div>
-                <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-1">Project Management</h3>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">You have {repositories.length} project{repositories.length === 1 ? '' : 's'} saved locally.</p>
+                <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-1">Repository Management</h3>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">You have {repositories.length} repositor{repositories.length === 1 ? 'y' : 'ies'} saved locally.</p>
               </div>
               <button
-                onClick={handleDeleteAllProjects}
+                onClick={deleteRepositories}
                 disabled={repositories.length === 0}
                 className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800 disabled:bg-neutral-100 dark:disabled:bg-neutral-800 disabled:text-neutral-400 dark:disabled:text-neutral-600 disabled:cursor-not-allowed disabled:border-transparent"
               >
                 <Trash2 size={16} />
-                Delete All Projects
+                Delete All Repositories
               </button>
             </div>
           </div>
