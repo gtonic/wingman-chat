@@ -303,8 +303,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 text-left align-middle shadow-xl transition-all flex flex-col">
-                <div className="flex items-center justify-between p-4 border-b border-neutral-200 dark:border-neutral-700">
+              <Dialog.Panel className="w-full max-w-2xl h-[32rem] sm:h-[36rem] transform overflow-hidden rounded-2xl bg-white dark:bg-neutral-900 text-left align-middle shadow-xl transition-all flex flex-col">
+                <div className="flex items-center justify-between p-4 border-b border-neutral-200 dark:border-neutral-700 flex-shrink-0">
                   <Dialog.Title as="h3" className="hidden sm:block text-lg font-medium leading-6 text-neutral-900 dark:text-neutral-100">Settings</Dialog.Title>
                   <div className="sm:hidden flex-1 pr-4">
                     <Select 
@@ -319,7 +319,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </div>
 
                 <div className="flex flex-1 min-h-0">
-                  <nav className="hidden sm:block w-48 border-r border-neutral-200 dark:border-neutral-800 p-1">
+                  <nav className="hidden sm:block w-48 border-r border-neutral-200 dark:border-neutral-800 p-1 flex-shrink-0">
                     <div className="space-y-1">
                       {sections.map((section) => (
                         <button
@@ -334,8 +334,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       ))}
                     </div>
                   </nav>
-                  <div className="flex-1 p-6 overflow-y-auto">
-                    {renderSectionContent()}
+                  <div className="flex-1 p-6 overflow-y-auto min-h-0">
+                    <div className="min-h-full">
+                      {renderSectionContent()}
+                    </div>
                   </div>
                 </div>
               </Dialog.Panel>

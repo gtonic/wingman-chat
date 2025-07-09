@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { Plus as PlusIcon, Mic, MicOff, Package, PackageOpen, AlertTriangle } from "lucide-react";
+import { Plus as PlusIcon, Mic, MicOff, Package, PackageOpen, AlertTriangle, Info } from "lucide-react";
 import { Button, Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
+import { getConfig } from "../config";
 import { useAutoScroll } from "../hooks/useAutoScroll";
 import { useSidebar } from "../hooks/useSidebar";
 import { useNavigation } from "../hooks/useNavigation";
@@ -194,7 +195,12 @@ export function ChatPage() {
                     <img 
                       src="/logo.svg" 
                       alt="Wingman Chat" 
-                      className="h-24 w-24 opacity-80 dark:opacity-60"
+                      className="h-24 w-24 opacity-70 dark:hidden"
+                    />
+                    <img 
+                      src="/logo_dark.svg" 
+                      alt="Wingman Chat" 
+                      className="h-24 w-24 opacity-70 hidden dark:block"
                     />
                   </div>
                 )}
@@ -213,6 +219,23 @@ export function ChatPage() {
                   ? 'max-w-full md:max-w-[80vw] mx-auto' 
                   : 'max-content-width'
               }`}>
+                {/* Disclaimer for when there are messages */}
+                <div className="mb-6 mx-auto max-w-2xl">
+                  <div className="flex items-start justify-center gap-2 px-4 py-3">
+                    <Info size={16} className="text-neutral-500 dark:text-neutral-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-neutral-600 dark:text-neutral-400 text-left">
+                      {(() => {
+                        try {
+                          const config = getConfig();
+                          return config.title || "LLM";
+                        } catch {
+                          return "LLM";
+                        }
+                      })()}'s output may be inaccurate or incomplete. Verify before acting on it.
+                    </p>
+                  </div>
+                </div>
+                
                 {messages.map((message, idx) => (
                   <ChatMessage key={idx} message={message} />
                 ))}

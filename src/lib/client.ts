@@ -45,7 +45,7 @@ export class Client {
         if (a.type === AttachmentType.Text) {
           content.push({
             type: "text",
-            text: a.name + ":\n```" + a.data + "\n```",
+            text: "```text\n// " + a.name + "\n" + a.data + "\n```",
           });
         }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Folder, FileText, Upload, X, ChevronDown, Check, Edit, Trash2 } from 'lucide-react';
+import { Plus, Folder, FileText, Upload, X, ChevronDown, Check, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Button, Menu } from '@headlessui/react';
 import { useRepositories } from '../hooks/useRepositories';
 import { useRepository } from '../hooks/useRepository';
@@ -101,7 +101,7 @@ function RepositoryDetails({ repository }: RepositoryDetailsProps) {
                   
                   {file.status === 'processing' ? (
                     <div className="flex flex-col items-center justify-center">
-                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-neutral-300 dark:border-neutral-600 border-t-slate-500 mb-1"></div>
+                      <Loader2 size={20} className="animate-spin text-neutral-500 dark:text-neutral-400 mb-1" />
                       <div className="text-xs text-neutral-600 dark:text-neutral-400 font-medium">
                         {file.progress}%
                       </div>

@@ -1,7 +1,7 @@
 import { ChangeEvent, useState, FormEvent, useRef, useEffect, useMemo } from "react";
 import { Button, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 
-import { Send, Paperclip, ScreenShare, Image, X, Brain, File, Loader2, FileText, Lightbulb, Mic, Square, Package } from "lucide-react";
+import { Send, Paperclip, ScreenShare, Image, X, Brain, File, Loader2, FileText, Lightbulb, Mic, Square, Package, Check } from "lucide-react";
 
 import { Attachment, AttachmentType, Message, Role } from "../types/chat";
 import {
@@ -85,27 +85,24 @@ export function ChatInput() {
   // Transcription hook
   const { canTranscribe, isTranscribing, startTranscription, stopTranscription } = useTranscription();
 
-  const handleFiles = async (files: FileList | File[]) => {
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const fileId = `${file.name}-${Date.now()}-${i}`;
+  const handleFiles = async (files: File[]) => {
+    // Process all files in parallel for better performance
+    const processFile = async (file: File, index: number) => {
+      const fileId = `${file.name}-${index}`;
 
       setExtractingAttachments(prev => new Set([...prev, fileId]));
+      
       try {
         let attachment: Attachment | null = null;
 
         if (textTypes.includes(file.type) || textTypes.includes(getFileExt(file.name))) {
           const text = await readAsText(file);
           attachment = { type: AttachmentType.Text, name: file.name, data: text };
-        }
-
-        if (imageTypes.includes(file.type) || imageTypes.includes(getFileExt(file.name))) {
+        } else if (imageTypes.includes(file.type) || imageTypes.includes(getFileExt(file.name))) {
           const blob = await resizeImageBlob(file, 1920, 1920);
           const url = await readAsDataURL(blob);
           attachment = { type: AttachmentType.Image, name: file.name, data: url };
-        }
-
-        if (documentTypes.includes(file.type) || documentTypes.includes(getFileExt(file.name))) {
+        } else if (documentTypes.includes(file.type) || documentTypes.includes(getFileExt(file.name))) {
           const text = await client.extractText(file);
           attachment = { type: AttachmentType.Text, name: file.name, data: text };
         }
@@ -113,8 +110,11 @@ export function ChatInput() {
         if (attachment) {
           setAttachments(prev => [...prev, attachment]);
         }
+        
+        return attachment;
       } catch (error) {
-        console.error("Error processing file:", error);
+        console.error(`Error processing file ${file.name}:`, error);
+        return null;
       } finally {
         setExtractingAttachments(prev => {
           const newSet = new Set(prev);
@@ -122,7 +122,12 @@ export function ChatInput() {
           return newSet;
         });
       }
-    }
+    };
+
+    // Process all files in parallel using Promise.allSettled to handle individual failures gracefully
+    await Promise.allSettled(
+      files.map((file, index) => processFile(file, index))
+    );
   };
 
   const isDragging = useDropZone(containerRef, handleFiles);
@@ -284,7 +289,7 @@ export function ChatInput() {
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      handleFiles(files);
+      handleFiles(Array.from(files));
       e.target.value = "";
     }
   };
@@ -366,18 +371,13 @@ export function ChatInput() {
         {(attachments.length > 0 || extractingAttachments.size > 0) && (
           <div className="flex flex-wrap gap-3 p-3">
             {/* Loading attachments */}
-            {Array.from(extractingAttachments).map((fileId, index) => (
+            {Array.from(extractingAttachments).map((fileId) => (
               <div
                 key={fileId}
-                className="relative size-14 bg-white/30 dark:bg-black/20 backdrop-blur-lg rounded-xl border-2 border-dashed border-white/50 dark:border-white/30 flex items-center justify-center animate-pulse"
+                className="relative size-14 bg-white/30 dark:bg-neutral-800/60 backdrop-blur-lg rounded-xl border-2 border-dashed border-white/50 dark:border-white/30 flex items-center justify-center shadow-sm"
                 title="Processing file..."
               >
                 <Loader2 size={18} className="animate-spin text-neutral-500 dark:text-neutral-400" />
-                {extractingAttachments.size > 1 && (
-                  <div className="absolute -bottom-1 -right-1 size-4 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center">
-                    {index + 1}
-                  </div>
-                )}
               </div>
             ))}
             
@@ -508,16 +508,32 @@ export function ChatInput() {
                 <MenuItems
                   transition
                   anchor="bottom start"
-                  className="sidebar-scroll !max-h-[50vh] mt-2 rounded border bg-white/30 dark:bg-black/25 backdrop-blur-2xl border-white/30 dark:border-white/20 overflow-y-auto shadow-lg z-50"
+                  className="sidebar-scroll !max-h-[50vh] mt-2 rounded-xl border-2 bg-white/40 dark:bg-neutral-950/80 backdrop-blur-3xl border-white/40 dark:border-neutral-700/60 overflow-hidden shadow-2xl shadow-black/40 dark:shadow-black/80 z-50 min-w-52 dark:ring-1 dark:ring-white/10"
                 >
-                  {models.map((model) => (
-                    <MenuItem key={model.id}>
+                  {models.map((modelItem) => (
+                    <MenuItem key={modelItem.id}>
                       <Button
-                        onClick={() => onModelChange(model)}
-                        title={model.description}
-                        className="group flex w-full items-center px-4 py-2 data-[focus]:bg-white/40 dark:data-[focus]:bg-black/30 text-neutral-800 dark:text-neutral-200 focus:outline-none cursor-pointer"
+                        onClick={() => onModelChange(modelItem)}
+                        title={modelItem.description}
+                        className="group flex w-full flex-col items-start px-3 py-2 data-[focus]:bg-white/30 dark:data-[focus]:bg-white/8 hover:bg-white/25 dark:hover:bg-white/5 text-neutral-800 dark:text-neutral-200 focus:outline-none cursor-pointer transition-all duration-200 border-b border-white/20 dark:border-white/10 last:border-b-0"
                       >
-                        {model.name ?? model.id}
+                        <div className="flex items-center gap-2.5 w-full">
+                          <div className="flex-shrink-0 w-3.5 flex justify-center">
+                            {model?.id === modelItem.id && (
+                              <Check size={14} className="text-neutral-600 dark:text-neutral-400" />
+                            )}
+                          </div>
+                          <div className="flex flex-col items-start flex-1">
+                            <div className="font-semibold text-sm leading-tight">
+                              {modelItem.name ?? modelItem.id}
+                            </div>
+                            {modelItem.description && (
+                              <div className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5 text-left leading-relaxed opacity-90">
+                                {modelItem.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </Button>
                     </MenuItem>
                   ))}
