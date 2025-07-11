@@ -18,6 +18,8 @@ func main() {
 		title = "Wingman AI"
 	}
 
+	disclaimer := os.Getenv("DISCLAIMER")
+
 	token := platformToken()
 
 	platformURL := platformURL()
@@ -85,7 +87,8 @@ func main() {
 		}
 
 		type configType struct {
-			Title string `json:"title,omitempty" yaml:"title,omitempty"`
+			Title      string `json:"title,omitempty" yaml:"title,omitempty"`
+			Disclaimer string `json:"disclaimer,omitempty" yaml:"disclaimer,omitempty"`
 
 			Models []modelType `json:"models,omitempty" yaml:"models,omitempty"`
 
@@ -102,7 +105,8 @@ func main() {
 		}
 
 		config := configType{
-			Title: title,
+			Title:      title,
+			Disclaimer: disclaimer,
 		}
 
 		if data, err := os.ReadFile("models.yaml"); err == nil {

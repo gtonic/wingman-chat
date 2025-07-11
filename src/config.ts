@@ -12,6 +12,7 @@ interface backgroundPackConfig {
 
 interface config {
   title: string;
+  disclaimer: string;
 
   models: modelConfig[];
   backgrounds?: backgroundPackConfig;
@@ -67,6 +68,7 @@ interface translatorConfig {
 
 interface Config {
   title: string;
+  disclaimer: string;
 
   client: Client;
 
@@ -103,6 +105,7 @@ export const loadConfig = async (): Promise<Config | undefined> => {
 
     config = {
       title : cfg.title,
+      disclaimer: cfg.disclaimer,
       
       client: client,
 

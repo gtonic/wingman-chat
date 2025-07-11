@@ -219,22 +219,27 @@ export function ChatPage() {
                   ? 'max-w-full md:max-w-[80vw] mx-auto' 
                   : 'max-content-width'
               }`}>
-                {/* Disclaimer for when there are messages */}
-                <div className="mb-6 mx-auto max-w-2xl">
-                  <div className="flex items-start justify-center gap-2 px-4 py-3">
-                    <Info size={16} className="text-neutral-500 dark:text-neutral-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-neutral-600 dark:text-neutral-400 text-left">
-                      {(() => {
-                        try {
-                          const config = getConfig();
-                          return config.title || "LLM";
-                        } catch {
-                          return "LLM";
-                        }
-                      })()}'s output may be inaccurate or incomplete. Verify before acting on it.
-                    </p>
-                  </div>
-                </div>
+                {(() => {
+                  try {
+                    const config = getConfig();
+                    const disclaimer = config.disclaimer;
+                    if (disclaimer && disclaimer.trim()) {
+                      return (
+                        <div className="mb-6 mx-auto max-w-2xl">
+                          <div className="flex items-start justify-center gap-2 px-4 py-3">
+                            <Info size={16} className="text-neutral-500 dark:text-neutral-400 flex-shrink-0 mt-0.5" />
+                            <p className="text-xs text-neutral-600 dark:text-neutral-400 text-left">
+                              {disclaimer}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  } catch {
+                    return null;
+                  }
+                })()}
                 
                 {messages.map((message, idx) => (
                   <ChatMessage key={idx} message={message} />
