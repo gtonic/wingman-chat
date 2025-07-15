@@ -1,6 +1,8 @@
 import { memo } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import { MermaidRenderer } from './MermaidRenderer';
 import { CardRenderer } from './CardRenderer';
 import { CodeRenderer } from './CodeRenderer';
@@ -136,7 +138,7 @@ const components: Partial<Components> = {
         return <tr className="border-b border-neutral-300 dark:border-neutral-700" {...props}>{children}</tr>;
     },
     th: ({ children, ...props }) => {
-        return <th className="p-2 text-left font-semibold" {...props}>{children}</th>;
+        return <th className="p-2 text-left font-semibold border-r last:border-r-0 border-neutral-300 dark:border-neutral-700" {...props}>{children}</th>;
     },
     td: ({ children, ...props }) => {
         return <td className="p-2 border-r last:border-r-0 border-neutral-300 dark:border-neutral-700" {...props}>{children}</td>;
@@ -213,13 +215,19 @@ const components: Partial<Components> = {
 };
 
 const remarkPlugins = [remarkGfm];
+const rehypePlugins = [rehypeRaw, rehypeSanitize];
 
 const NonMemoizedMarkdown = ({ children }: { children: string }) => {
     if (!children) return null;
     
     try {
         return (
-            <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
+            <ReactMarkdown 
+                remarkPlugins={remarkPlugins} 
+                components={components}
+                rehypePlugins={rehypePlugins}
+                remarkRehypeOptions={{ allowDangerousHtml: true }}
+            >
                 {children}
             </ReactMarkdown>
         );
