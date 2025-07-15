@@ -139,24 +139,15 @@ body {
   @apply text-black bg-neutral-50 dark:text-white dark:bg-neutral-950;
 }
 
-/* Remove focus outlines from all buttons and interactive elements */
-button:focus,
-button:focus-visible,
-[role="button"]:focus,
-[role="button"]:focus-visible,
-[data-headlessui-state] button:focus,
-[data-headlessui-state] button:focus-visible {
+*:focus,
+*:focus-visible {
   outline: none !important;
-  box-shadow: none !important;
-  border-color: inherit !important;
 }
 
-/* Ensure all Headless UI buttons have hand cursor on hover */
 [role="button"] {
   cursor: pointer !important;
 }
 
-/* Disabled buttons should not have pointer cursor */
 [role="button"]:disabled {
   cursor: not-allowed !important;
 }
@@ -166,7 +157,7 @@ button:focus-visible,
 }
 
 .sidebar-item-base {
-  @apply p-1.5 sm:p-2 hover:text-neutral-600 dark:hover:text-neutral-300 rounded cursor-pointer focus:outline-none transition-all duration-200;
+  @apply p-1.5 sm:p-2 hover:text-neutral-600 dark:hover:text-neutral-300 rounded cursor-pointer transition-all duration-200;
 }
 
 .sidebar-item-hidden {
@@ -198,8 +189,6 @@ button:focus-visible,
 .sidebar-item-selected {
   @apply p-1.5 sm:p-2 text-neutral-900 dark:text-neutral-100 focus:outline-none;
 }
-
-
 
 .chat-bubble {
   @apply text-neutral-900 dark:text-neutral-200

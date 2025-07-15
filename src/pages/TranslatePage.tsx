@@ -158,7 +158,7 @@ export function TranslatePage() {
                     {!selectedFile && supportedFiles.length > 0 && (
                       <Button
                         onClick={handleFileUploadClick}
-                        className="inline-flex items-center gap-1 pl-0.5 pr-2 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 cursor-pointer focus:outline-none text-sm transition-colors"
+                        className="inline-flex items-center gap-1 pl-0.5 pr-2 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 cursor-pointer text-sm transition-colors"
                         title={`Select a file to translate (${supportedFiles.map(sf => sf.ext).join(', ')})`}
                       >
                         <UploadIcon size={14} />
@@ -213,7 +213,7 @@ export function TranslatePage() {
                       value={sourceText}
                       onChange={(e) => setSourceText(e.target.value)}
                       placeholder="Enter text to translate..."
-                      className="absolute inset-0 w-full h-full pl-4 pr-8 md:pr-2 pt-12 pb-2 md:pb-2 bg-transparent border-none resize-none focus:outline-none overflow-y-auto text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
+                      className="absolute inset-0 w-full h-full pl-4 pr-8 md:pr-2 pt-12 pb-2 md:pb-2 bg-transparent border-none resize-none overflow-y-auto text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
                     />
                   )}
                 </div>
@@ -244,7 +244,7 @@ export function TranslatePage() {
                 <div className="flex-1 flex flex-col relative min-w-0 min-h-0 overflow-hidden">
                   <div className="absolute top-2 left-3 z-10">
                     <Menu>
-                      <MenuButton className="inline-flex items-center gap-1 pl-1 pr-2 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 cursor-pointer focus:outline-none text-sm transition-colors">
+                      <MenuButton className="inline-flex items-center gap-1 pl-1 pr-2 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 cursor-pointer text-sm transition-colors">
                         <GlobeIcon size={14} />
                         <span>
                           {selectedLanguage?.name || 'Select Language'}
@@ -272,7 +272,7 @@ export function TranslatePage() {
                     value={translatedText}
                     readOnly
                     placeholder={selectedFile ? "" : "Translation will appear here..."}
-                    className="absolute inset-0 w-full h-full pl-4 pr-2 pt-12 pb-2 bg-transparent border-none resize-none focus:outline-none overflow-y-auto text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
+                    className="absolute inset-0 w-full h-full pl-4 pr-2 pt-12 pb-2 bg-transparent border-none resize-none overflow-y-auto text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
                   />
                   
                   {/* Show download link for translated files */}

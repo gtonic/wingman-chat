@@ -31,14 +31,14 @@ function Select<T extends string | null>({ label, value, onChange, options, help
     <div className={containerClassName}>
       {label && <label className="block text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-2">{label}</label>}
       <Listbox value={value} onChange={onChange}>
-        <Listbox.Button className="relative w-full cursor-pointer rounded-lg bg-white dark:bg-neutral-800/60 py-2 pl-3 pr-10 text-left border border-neutral-300 dark:border-neutral-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 data-[headlessui-state=open]:ring-2 data-[headlessui-state=open]:ring-blue-500">
+        <Listbox.Button className="relative w-full cursor-pointer rounded-lg bg-white dark:bg-neutral-800/60 py-2 pl-3 pr-10 text-left border border-neutral-300 dark:border-neutral-700 focus-visible:ring-2 focus-visible:ring-blue-500 data-[headlessui-state=open]:ring-2 data-[headlessui-state=open]:ring-blue-500">
           <span className="block truncate">{options.find(o => o.value === value)?.label ?? 'None'}</span>
           <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
             <ChevronsUpDown className="h-5 w-5 text-neutral-400" aria-hidden="true" />
           </span>
         </Listbox.Button>
         <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-          <Listbox.Options anchor="bottom" className="mt-1 w-[var(--button-width)] max-h-60 overflow-auto rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-100/80 dark:bg-neutral-800/80 p-1 backdrop-blur-xl focus:outline-none sm:text-sm z-10 transition duration-100 ease-in data-[leave]:data-[closed]:opacity-0">
+          <Listbox.Options anchor="bottom" className="mt-1 w-[var(--button-width)] max-h-60 overflow-auto rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-100/80 dark:bg-neutral-800/80 p-1 backdrop-blur-xl sm:text-sm z-10 transition duration-100 ease-in data-[leave]:data-[closed]:opacity-0">
             {options.map((option) => (
               <Listbox.Option
                 key={String(option.value)}
@@ -165,7 +165,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 type="text"
                 value={profile.name || ''}
                 onChange={(e) => updateProfile({ name: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-800/60 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100"
+                className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-800/60 border border-neutral-300 dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100"
                 placeholder="Your nickname or name"
               />
             </div>
@@ -176,7 +176,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 type="text"
                 value={profile.role || ''}
                 onChange={(e) => updateProfile({ role: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-800/60 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100"
+                className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-800/60 border border-neutral-300 dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100"
                 placeholder="e.g., Software Developer, Student, Designer"
               />
             </div>
@@ -209,7 +209,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <textarea
                 value={profile.profile || ''}
                 onChange={(e) => updateProfile({ profile: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-800/60 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100 resize-none"
+                className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-neutral-800/60 border border-neutral-300 dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 text-neutral-900 dark:text-neutral-100 resize-none"
                 rows={2}
                 placeholder="Brief description about yourself, your interests, or context..."
               />

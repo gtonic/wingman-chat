@@ -428,7 +428,7 @@ export function ChatInput() {
                     key={index}
                     type="button"
                     onClick={() => handlePromptSelect(suggestion)}
-                    className="w-full text-left p-3 text-sm bg-white/25 dark:bg-black/15 backdrop-blur-lg hover:bg-white/40 dark:hover:bg-black/25 rounded-lg border border-white/30 dark:border-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer"
+                    className="w-full text-left p-3 text-sm bg-white/25 dark:bg-black/15 backdrop-blur-lg hover:bg-white/40 dark:hover:bg-black/25 rounded-lg border border-white/30 dark:border-white/20 transition-colors focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer"
                   >
                     {suggestion}
                   </button>
@@ -446,7 +446,7 @@ export function ChatInput() {
         <div className="relative flex-1">
           <div
             ref={contentEditableRef}
-            className="p-3 md:p-4 flex-1 max-h-[40vh] overflow-y-auto min-h-[2.5rem] whitespace-pre-wrap break-words focus:outline-none text-neutral-800 dark:text-neutral-200"
+            className="p-3 md:p-4 flex-1 max-h-[40vh] overflow-y-auto min-h-[2.5rem] whitespace-pre-wrap break-words text-neutral-800 dark:text-neutral-200"
             style={{ 
               scrollbarWidth: "thin",
               minHeight: "2.5rem",
@@ -490,7 +490,7 @@ export function ChatInput() {
           <div className="flex items-center gap-2">
             <Button
               type="button"
-              className="text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 focus:outline-none cursor-pointer"
+              className="text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 cursor-pointer"
               onClick={handlePromptSuggestionsClick}
               title="Show prompt suggestions"
             >
@@ -499,7 +499,7 @@ export function ChatInput() {
             
             {models.length > 0 && (
               <Menu>
-                <MenuButton className="flex items-center gap-1 pr-1.5 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 focus:outline-none text-sm cursor-pointer">
+                <MenuButton className="flex items-center gap-1 pr-1.5 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 text-sm cursor-pointer">
                   <Brain size={14} />
                   <span>
                     {model?.name ?? model?.id ?? "Select Model"}
@@ -515,7 +515,7 @@ export function ChatInput() {
                       <Button
                         onClick={() => onModelChange(modelItem)}
                         title={modelItem.description}
-                        className="group flex w-full flex-col items-start px-3 py-2 data-[focus]:bg-white/30 dark:data-[focus]:bg-white/8 hover:bg-white/25 dark:hover:bg-white/5 text-neutral-800 dark:text-neutral-200 focus:outline-none cursor-pointer transition-all duration-200 border-b border-white/20 dark:border-white/10 last:border-b-0"
+                        className="group flex w-full flex-col items-start px-3 py-2 data-[focus]:bg-white/30 dark:data-[focus]:bg-white/8 hover:bg-white/25 dark:hover:bg-white/5 text-neutral-800 dark:text-neutral-200 cursor-pointer transition-all duration-200 border-b border-white/20 dark:border-white/10 last:border-b-0"
                       >
                         <div className="flex items-center gap-2.5 w-full">
                           <div className="flex-shrink-0 w-3.5 flex justify-center">
@@ -562,7 +562,7 @@ export function ChatInput() {
             {config.vision && supportsScreenshot() && (
               <Button
                 type="button"
-                className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 focus:outline-none cursor-pointer"
+                className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 cursor-pointer"
                 onClick={handleScreenshotClick}
               >
                 <ScreenShare size={16} />
@@ -571,7 +571,7 @@ export function ChatInput() {
 
             <Button
               type="button"
-              className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 focus:outline-none cursor-pointer"
+              className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 cursor-pointer"
               onClick={handleAttachmentClick}
             >
               <Paperclip size={16} />
@@ -580,7 +580,7 @@ export function ChatInput() {
             {/* Dynamic Send/Mic Button */}
             {content.trim() ? (
               <Button
-                className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 focus:outline-none cursor-pointer"
+                className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 cursor-pointer"
                 type="submit"
               >
                 <Send size={16} />
@@ -598,7 +598,7 @@ export function ChatInput() {
               ) : (
                 <Button
                   type="button"
-                  className={`p-1.5 focus:outline-none cursor-pointer transition-colors ${
+                  className={`p-1.5 cursor-pointer transition-colors ${
                     isTranscribing 
                       ? 'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200' 
                       : 'text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200'
@@ -611,7 +611,7 @@ export function ChatInput() {
               )
             ) : (
               <Button
-                className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 focus:outline-none cursor-pointer"
+                className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 cursor-pointer"
                 type="submit"
               >
                 <Send size={16} />

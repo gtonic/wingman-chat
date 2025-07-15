@@ -103,12 +103,12 @@ export function ChatSidebar() {
               <MenuItems
                 transition
                 anchor="bottom end"
-                className="w-32 origin-top-right rounded-md border border-white/20 dark:border-white/15 bg-white/90 dark:bg-black/90 backdrop-blur-lg shadow-lg transition duration-100 ease-out [--anchor-gap:var(--spacing-1)] focus:outline-none data-[closed]:scale-95 data-[closed]:opacity-0 z-50"
+                className="w-32 origin-top-right rounded-md border border-white/20 dark:border-white/15 bg-white/90 dark:bg-black/90 backdrop-blur-lg shadow-lg transition duration-100 ease-out [--anchor-gap:var(--spacing-1)] data-[closed]:scale-95 data-[closed]:opacity-0 z-50"
               >
                 <MenuItem>
                   <Button
                     onClick={() => forkChat(chatItem)}
-                    className="group flex w-full items-center gap-2 rounded-md py-2 px-3 data-[focus]:bg-neutral-500/10 dark:data-[focus]:bg-neutral-500/20 text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 focus:outline-none cursor-pointer"
+                    className="group flex w-full items-center gap-2 rounded-md py-2 px-3 data-[focus]:bg-neutral-500/10 dark:data-[focus]:bg-neutral-500/20 text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 cursor-pointer"
                   >
                     <GitBranch size={14} />
                     Fork
@@ -117,7 +117,7 @@ export function ChatSidebar() {
                 <MenuItem>
                   <Button
                     onClick={() => deleteChat(chatItem.id)}
-                    className="group flex w-full items-center gap-2 rounded-md py-2 px-3 data-[focus]:bg-red-500/10 dark:data-[focus]:bg-red-500/20 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 focus:outline-none cursor-pointer"
+                    className="group flex w-full items-center gap-2 rounded-md py-2 px-3 data-[focus]:bg-red-500/10 dark:data-[focus]:bg-red-500/20 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 cursor-pointer"
                   >
                     <Trash size={14} />
                     Delete
