@@ -1,5 +1,5 @@
 import { ChangeEvent, useState, FormEvent, useRef, useEffect, useMemo } from "react";
-import { Button, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
+import { Button, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 
 import { Send, Paperclip, ScreenShare, Image, X, Brain, File, Loader2, FileText, Lightbulb, Mic, Square, Package, Check } from "lucide-react";
 
@@ -235,6 +235,25 @@ export function ChatInput() {
     };
   }, []);
 
+  // Auto-focus the chat input when there are no messages (startup or new chat)
+  useEffect(() => {
+    if (messages.length === 0) {
+      const focusInput = () => {
+        if (contentEditableRef.current) {
+          contentEditableRef.current.focus();
+        }
+      };
+
+      // Focus immediately and also with a small delay to ensure DOM is ready
+      focusInput();
+      const focusTimer = setTimeout(focusInput, 100);
+      
+      return () => {
+        clearTimeout(focusTimer);
+      };
+    }
+  }, [messages.length]);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
@@ -250,7 +269,7 @@ export function ChatInput() {
       setAttachments([]);
       
       if (contentEditableRef.current) {
-        contentEditableRef.current.textContent = "";
+        contentEditableRef.current.innerHTML = "";
       }
     }
   };
@@ -315,7 +334,9 @@ export function ChatInput() {
           setContent(text);
           
           if (contentEditableRef.current) {
-            contentEditableRef.current.textContent = text;
+            // Convert newlines to <br> tags for proper display in contentEditable
+            const htmlText = text.replace(/\n/g, '<br>');
+            contentEditableRef.current.innerHTML = htmlText;
           }
         }
       } catch (error) {
@@ -457,7 +478,10 @@ export function ChatInput() {
             suppressContentEditableWarning={true}
             onInput={(e) => {
               const target = e.target as HTMLDivElement;
-              const newContent = target.textContent || "";
+              
+              // Simple approach: use innerText which preserves line breaks
+              const newContent = target.innerText || '';
+              
               setContent(newContent);
               
               // Hide prompt suggestions when user starts typing
@@ -472,7 +496,7 @@ export function ChatInput() {
           {/* CSS-animated placeholder */}
           {shouldShowPlaceholder && (
             <div 
-              className={`absolute top-3 md:top-4 left-3 md:left-4 pointer-events-none text-neutral-500 dark:text-neutral-400 ${
+              className={`absolute top-3 md:top-4 left-4 md:left-5 pointer-events-none text-neutral-500 dark:text-neutral-400 ${
                 messages.length === 0 ? 'typewriter-text' : ''
               }`}
               style={messages.length === 0 ? {
