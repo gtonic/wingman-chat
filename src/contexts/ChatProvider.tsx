@@ -110,25 +110,29 @@ export function ChatProvider({ children }: ChatProviderProps) {
       updateChat(id, { messages: [...conversation, { role: Role.Assistant, content: '' }] });
 
       try {
+        const profileInstructions = generateInstructions();
+
         const repositoryTools = currentRepository ? queryTools() : [];
+        const repositoryInstructions = currentRepository?.instructions || '';
+        
         const completionTools = [...bridgeTools, ...repositoryTools, ...(tools || [])];
 
         const instructions: string[] = [];
-
-        if (bridgeInstructions) {
-          instructions.push(bridgeInstructions);
-        }
-
-        const profileInstructions = generateInstructions();
 
         if (profileInstructions.trim()) {
           instructions.push(profileInstructions);
         }
 
-        if (repositoryTools.length > 0) {
-          instructions.push(`You are an intelligent document-retrieval assistant.
+        if (bridgeInstructions?.trim()) {
+          instructions.push(bridgeInstructions);
+        }
+        
+        if (repositoryInstructions.trim()) {
+          instructions.push(repositoryInstructions);
+        }
 
-          Your mission:
+        if (repositoryTools.length > 0) {
+          instructions.push(`Your mission:
           1. For *every* user query, you MUST first invoke the \`query_knowledge_database\` tool with a concise, natural-language query.
           2. Examine the tool's results.
              - If you get ≥1 relevant documents or facts, answer the user *solely* using those results.
