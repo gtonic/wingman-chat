@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Plus, Folder, FileText, Upload, X, ChevronDown, Check, Edit, Trash2, Loader2 } from 'lucide-react';
-import { Button, Menu } from '@headlessui/react';
+import { Plus, Folder, FileText, X, ChevronDown, Check, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Menu, Dialog, Transition } from '@headlessui/react';
+import { Fragment } from 'react';
 import { useRepositories } from '../hooks/useRepositories';
 import { useRepository } from '../hooks/useRepository';
 import { Repository, RepositoryFile } from '../types/repository';
@@ -11,7 +12,10 @@ interface RepositoryDetailsProps {
 
 function RepositoryDetails({ repository }: RepositoryDetailsProps) {
   const { files, addFile, removeFile } = useRepository(repository.id);
+  const { updateRepository } = useRepositories();
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isEditingInstructions, setIsEditingInstructions] = useState(false);
+  const [instructionsValue, setInstructionsValue] = useState('');
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -32,55 +36,159 @@ function RepositoryDetails({ repository }: RepositoryDetailsProps) {
     e.target.value = '';
   };
 
+  const startEditingInstructions = () => {
+    setInstructionsValue(repository.instructions || '');
+    setIsEditingInstructions(true);
+  };
+
+  const saveInstructions = () => {
+    updateRepository(repository.id, {
+      instructions: instructionsValue.trim() || undefined
+    });
+    setIsEditingInstructions(false);
+  };
+
+  const cancelEditingInstructions = () => {
+    setIsEditingInstructions(false);
+    setInstructionsValue('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEditingInstructions();
+    } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      saveInstructions();
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      {repository.instructions && (
-        <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
-          <div className="text-xs text-neutral-500 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-800 p-2 rounded">
-            <strong>Instructions:</strong> {repository.instructions}
+      {/* Instructions Edit Dialog */}
+      <Transition appear show={isEditingInstructions} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={cancelEditingInstructions}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/25 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-neutral-800 p-6 text-left align-middle shadow-xl transition-all">
+                  <div className="space-y-4">
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                      Instructions help provide context about how the files in this repository should be used.
+                    </p>
+                    
+                    <textarea
+                      value={instructionsValue}
+                      onChange={(e) => setInstructionsValue(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      rows={12}
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md 
+                               bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100
+                               focus:ring-2 focus:ring-slate-500 focus:border-transparent resize-y min-h-[200px]"
+                      placeholder="Enter instructions for this repository..."
+                      autoFocus
+                    />
+                    
+                    <div className="flex gap-3 justify-end pt-2">
+                      <button
+                        onClick={cancelEditingInstructions}
+                        className="px-4 py-2 text-sm bg-neutral-200 dark:bg-neutral-700 
+                                 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-700 dark:text-neutral-300 
+                                 rounded-md transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={saveInstructions}
+                        className="px-4 py-2 text-sm bg-slate-600 hover:bg-slate-700 
+                                 text-white rounded-md transition-colors cursor-pointer"
+                      >
+                        Save Instructions
+                      </button>
+                    </div>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* Instructions Display */}
+      <div className="px-4 pt-4 pb-2">
+        <div className="flex gap-4">
+          {/* Instructions Container */}
+          <div className="flex-1">
+            <div 
+              onClick={startEditingInstructions}
+              className="text-sm text-neutral-500 dark:text-neutral-400 bg-white/30 dark:bg-neutral-800/30 p-3 rounded-lg border-2 border-dashed border-neutral-300 dark:border-neutral-600 cursor-pointer hover:border-slate-400 dark:hover:border-slate-500 hover:bg-white/40 dark:hover:bg-neutral-800/50 transition-colors group backdrop-blur-lg"
+            >
+              <div className="flex items-center justify-center">
+                <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
+                  {repository.instructions ? <Edit size={12} /> : <Plus size={12} />}
+                  Instructions
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* File Upload Container */}
+          <div className="flex-1">
+            <div
+              className={`border-2 border-dashed rounded-lg p-3 text-center transition-colors cursor-pointer bg-white/30 dark:bg-neutral-800/30 backdrop-blur-lg
+                ${isDragOver 
+                  ? 'border-slate-400 bg-slate-50/50 dark:bg-neutral-700/70' 
+                  : 'border-neutral-300 dark:border-neutral-600 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-white/40 dark:hover:bg-neutral-800/50'
+                }`}
+              onDrop={handleDrop}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragOver(true);
+              }}
+              onDragLeave={() => setIsDragOver(false)}
+              onClick={() => document.getElementById('file-upload')?.click()}
+            >
+              <div className="flex items-center justify-center">
+                <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
+                  <Plus size={12} />
+                  Knowledge
+                </div>
+              </div>
+              <input
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+                id="file-upload"
+              />
+            </div>
           </div>
         </div>
-      )}
-
-      {/* File upload area */}
-      <div
-        className={`m-4 border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer bg-white/30 dark:bg-neutral-800/60 backdrop-blur-lg
-          ${isDragOver 
-            ? 'border-slate-400 bg-slate-50/50 dark:bg-neutral-700/70' 
-            : 'border-neutral-300 dark:border-neutral-600 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-white/40 dark:hover:bg-neutral-800/70'
-          }`}
-        onDrop={handleDrop}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragOver(true);
-        }}
-        onDragLeave={() => setIsDragOver(false)}
-        onClick={() => document.getElementById('file-upload')?.click()}
-      >
-        <Upload size={24} className="mx-auto mb-2 text-neutral-400" />
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Drop files here or click to upload
-        </p>
-        <input
-          type="file"
-          multiple
-          onChange={handleFileSelect}
-          className="hidden"
-          id="file-upload"
-        />
       </div>
 
       {/* Files list */}
-      <div className="flex-1 overflow-auto p-4">
-        <h4 className="font-medium text-neutral-900 dark:text-neutral-100 mb-3">
-          Files ({files.length})
-        </h4>
-        
-        {files.length === 0 ? (
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center py-8">
-            No files uploaded yet
-          </p>
-        ) : (
+      {files.length > 0 && (
+        <div className="flex-1 overflow-auto px-4 pb-4 pt-4">
           <div className="flex flex-wrap gap-3">
             {files
               .slice()
@@ -141,132 +249,25 @@ function RepositoryDetails({ repository }: RepositoryDetailsProps) {
               </div>
             ))}
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-interface EditRepositoryFormProps {
-  repository: Repository;
-  onSubmit: (id: string, name: string, instructions: string) => void;
-  onCancel: () => void;
-  onDelete: (id: string) => void;
-}
-
-function EditRepositoryForm({ repository, onSubmit, onCancel, onDelete }: EditRepositoryFormProps) {
-  const [name, setName] = useState(repository.name);
-  const [instructions, setInstructions] = useState(repository.instructions || '');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim()) {
-      onSubmit(repository.id, name.trim(), instructions.trim());
-    }
-  };
-
-  const handleDelete = () => {
-    onDelete(repository.id);
-    onCancel();
-  };
-
-  if (showDeleteConfirm) {
-    return (
-      <div className="p-4">
-        <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
-          Delete Repository
-        </h3>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
-          Are you sure you want to delete "{repository.name}"? This action cannot be undone and will remove all files in this repository.
-        </p>
-        <div className="flex gap-2">
-          <Button
-            onClick={handleDelete}
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md 
-                     transition-colors cursor-pointer"
-          >
-            Delete Repository
-          </Button>
-          <Button
-            onClick={() => setShowDeleteConfirm(false)}
-            className="flex-1 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 
-                     text-neutral-700 dark:text-neutral-300 px-4 py-2 rounded-md transition-colors cursor-pointer"
-          >
-            Cancel
-          </Button>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div className="p-4">
-      <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
-        Edit Repository
-      </h3>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-            Name *
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md 
-                     bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100
-                     focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-            placeholder="Enter repository name"
-            required
-          />
+      {/* Hint section when empty */}
+      {(!repository.instructions && files.length === 0) && (
+        <div className="flex-1 flex items-center justify-center px-4 pb-4">
+          <div className="text-center max-w-sm">
+            <div className="text-neutral-400 dark:text-neutral-500 mb-2">
+              <FileText size={32} className="mx-auto" />
+            </div>
+            <h4 className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Add content
+            </h4>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+              Give instructions and add knowledge as context
+            </p>
+          </div>
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-            Instructions
-          </label>
-          <textarea
-            value={instructions}
-            onChange={(e) => setInstructions(e.target.value)}
-            rows={3}
-            className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md 
-                     bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100
-                     focus:ring-2 focus:ring-slate-500 focus:border-transparent resize-none"
-            placeholder="Optional instructions for this repository"
-          />
-        </div>
-        
-        <div className="flex gap-2 pt-2">
-          <Button
-            type="submit"
-            className="flex-1 bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-md 
-                     transition-colors cursor-pointer"
-          >
-            Save Changes
-          </Button>
-          <Button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 
-                     text-neutral-700 dark:text-neutral-300 px-4 py-2 rounded-md transition-colors cursor-pointer"
-          >
-            Cancel
-          </Button>
-        </div>
-        
-        <div className="pt-4 border-t border-neutral-200 dark:border-neutral-700">
-          <Button
-            type="button"
-            onClick={() => setShowDeleteConfirm(true)}
-            className="w-full flex items-center justify-center gap-2 text-red-600 dark:text-red-400 
-                     hover:text-red-700 dark:hover:text-red-300 text-sm cursor-pointer"
-          >
-            <Trash2 size={14} />
-            Delete Repository
-          </Button>
-        </div>
-      </form>
+      )}
     </div>
   );
 }
@@ -282,29 +283,14 @@ export function RepositoryDrawer() {
     setShowRepositoryDrawer
   } = useRepositories();
   
-  const [editingRepository, setEditingRepository] = useState<Repository | null>(null);
   const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
-  const [newRepositoryName, setNewRepositoryName] = useState('');
 
   const handleCreateRepository = (name: string) => {
     createRepository(name);
     setIsCreatingNew(false);
-    setNewRepositoryName('');
-  };
-
-  const handleEditRepository = (id: string, name: string, instructions: string) => {
-    updateRepository(id, {
-      name,
-      instructions: instructions || undefined
-    });
-    setEditingRepository(null);
-  };
-
-  const handleDeleteRepository = async (id: string) => {
-    await deleteRepository(id);
-    setEditingRepository(null);
+    setEditingName('');
   };
 
   const startInlineEdit = (repository: Repository) => {
@@ -327,23 +313,27 @@ export function RepositoryDrawer() {
 
   const startCreatingNew = () => {
     setIsCreatingNew(true);
-    setNewRepositoryName('');
+    setEditingName('');
   };
 
   const saveNewRepository = (closeMenu?: () => void) => {
-    if (newRepositoryName.trim()) {
-      handleCreateRepository(newRepositoryName.trim());
+    if (editingName.trim()) {
+      handleCreateRepository(editingName.trim());
     }
     closeMenu?.();
   };
 
   const cancelNewRepository = (closeMenu?: () => void) => {
     setIsCreatingNew(false);
-    setNewRepositoryName('');
+    setEditingName('');
     closeMenu?.();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent, closeMenu?: () => void) => {
+  const handleInputKeyDown = (e: React.KeyboardEvent, closeMenu?: () => void) => {
+    // Stop propagation to prevent Menu from handling these events
+    e.stopPropagation();
+    
+    // Handle special keys
     if (e.key === 'Enter') {
       e.preventDefault();
       if (isCreatingNew) {
@@ -359,18 +349,8 @@ export function RepositoryDrawer() {
         cancelInlineEdit();
       }
     }
+    // Allow all other keys (including Space) to work normally
   };
-
-  if (editingRepository) {
-    return (
-      <EditRepositoryForm
-        repository={editingRepository}
-        onSubmit={handleEditRepository}
-        onCancel={() => setEditingRepository(null)}
-        onDelete={handleDeleteRepository}
-      />
-    );
-  }
 
 
 
@@ -379,7 +359,7 @@ export function RepositoryDrawer() {
       {/* Header with Unified Repository Selector */}
       <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
         <Menu as="div" className="relative w-full">
-          <Menu.Button className="relative w-full cursor-pointer rounded-lg bg-white/60 dark:bg-neutral-800 py-2 pl-3 pr-10 text-left shadow-md border border-neutral-300 dark:border-neutral-600 focus:ring-2 focus:ring-slate-500 hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors backdrop-blur-lg">
+          <Menu.Button className="relative w-full cursor-pointer rounded-lg bg-white/60 dark:bg-neutral-800/50 py-2 pl-3 pr-10 text-left shadow-md border border-neutral-300 dark:border-neutral-600 focus:ring-2 focus:ring-slate-500 hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors backdrop-blur-lg">
             <span className="flex items-center gap-2">
               <Folder size={16} className="text-slate-600 dark:text-slate-400" />
               <span className="block truncate text-neutral-900 dark:text-neutral-100 font-medium">
@@ -391,7 +371,7 @@ export function RepositoryDrawer() {
             </span>
           </Menu.Button>
 
-          <Menu.Items className="absolute z-20 mt-1 w-full max-h-80 overflow-auto rounded-md bg-white/60 dark:bg-neutral-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5 backdrop-blur-lg">
+          <Menu.Items className="absolute z-20 mt-1 w-full max-h-80 overflow-auto rounded-md bg-white dark:bg-neutral-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5 backdrop-blur-lg">
             {/* None Option */}
             <Menu.Item>
               {({ active }) => (
@@ -431,9 +411,9 @@ export function RepositoryDrawer() {
                       <Plus size={16} className="text-slate-600 dark:text-slate-400 flex-shrink-0" />
                       <input
                         type="text"
-                        value={newRepositoryName}
-                        onChange={(e) => setNewRepositoryName(e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, close)}
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => handleInputKeyDown(e, close)}
                         autoFocus
                         className="flex-1 text-sm bg-white dark:bg-neutral-700 border border-slate-500 rounded px-2 py-1 text-neutral-900 dark:text-neutral-100 focus:ring-1 focus:ring-slate-500"
                         placeholder="Repository name"
@@ -501,7 +481,7 @@ export function RepositoryDrawer() {
                               type="text"
                               value={editingName}
                               onChange={(e) => setEditingName(e.target.value)}
-                              onKeyDown={handleKeyDown}
+                              onKeyDown={(e) => handleInputKeyDown(e)}
                               autoFocus
                               className="flex-1 text-sm bg-white dark:bg-neutral-700 border border-slate-500 rounded px-2 py-1 text-neutral-900 dark:text-neutral-100 focus:ring-1 focus:ring-slate-500"
                               onClick={(e) => e.stopPropagation()}

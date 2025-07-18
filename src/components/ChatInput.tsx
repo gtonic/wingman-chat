@@ -42,6 +42,7 @@ export function ChatInput() {
   const [showPromptSuggestions, setShowPromptSuggestions] = useState(false);
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
   const [loadingPrompts, setLoadingPrompts] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contentEditableRef = useRef<HTMLDivElement>(null);
@@ -491,12 +492,16 @@ export function ChatInput() {
             }}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
+            onFocus={() => setIsInputFocused(true)}
+            onBlur={() => setIsInputFocused(false)}
           />
           
           {/* CSS-animated placeholder */}
           {shouldShowPlaceholder && (
             <div 
-              className={`absolute top-3 md:top-4 left-4 md:left-5 pointer-events-none text-neutral-500 dark:text-neutral-400 ${
+              className={`absolute top-3 md:top-4 pointer-events-none text-neutral-500 dark:text-neutral-400 transition-all duration-200 ${
+                isInputFocused ? 'left-5 md:left-6' : 'left-3 md:left-4'
+              } ${
                 messages.length === 0 ? 'typewriter-text' : ''
               }`}
               style={messages.length === 0 ? {

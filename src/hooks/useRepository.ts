@@ -277,6 +277,10 @@ export function useRepository(repositoryId: string): RepositoryDocumentHookRetur
   }, [vectorDB, repositoryId, repository?.embedder, files]);
 
   const queryTools = useCallback((): Tool[] => {
+    if (files.length === 0) {
+      return [];
+    }
+    
     return [
       {
         name: 'query_knowledge_database',
@@ -331,7 +335,7 @@ export function useRepository(repositoryId: string): RepositoryDocumentHookRetur
         }
       }
     ];
-  }, [queryChunks]);
+  }, [queryChunks, files.length]);
 
   return {
     files,
