@@ -74,14 +74,14 @@ const NonMemoizedCodeRenderer = ({ code, language }: CodeRendererProps) => {
   if (isLoading) {
     return (
       <div className="relative my-4">
-        <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-700 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
+        <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-800 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
           <span>{language}</span>
           <div className="flex items-center space-x-2">
             <div className="animate-spin rounded-full h-3 w-3 border border-blue-500 border-t-transparent"></div>
             <CopyButton text={code} />
           </div>
         </div>
-        <div className="bg-white dark:bg-neutral-800 p-4 rounded-b-md border border-gray-200 dark:border-neutral-700">
+        <div className="bg-white dark:bg-neutral-900 p-4 rounded-b-md border-l border-r border-b border-gray-100 dark:border-neutral-800">
           <pre className="text-gray-800 dark:text-neutral-300 text-sm whitespace-pre-wrap overflow-x-auto">
             <code>{code}</code>
           </pre>
@@ -94,11 +94,11 @@ const NonMemoizedCodeRenderer = ({ code, language }: CodeRendererProps) => {
   if (!SyntaxHighlighter || !styles) {
     return (
       <div className="relative my-4">
-        <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-700 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
+        <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-800 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
           <span>{language}</span>
           <CopyButton text={code} />
         </div>
-        <div className="bg-white dark:bg-neutral-800 p-4 rounded-b-md border border-gray-200 dark:border-neutral-700">
+        <div className="bg-white dark:bg-neutral-900 p-4 rounded-b-md border-l border-r border-b border-gray-100 dark:border-neutral-800">
           <pre className="text-gray-800 dark:text-neutral-300 text-sm whitespace-pre-wrap overflow-x-auto">
             <code>{code}</code>
           </pre>
@@ -109,12 +109,13 @@ const NonMemoizedCodeRenderer = ({ code, language }: CodeRendererProps) => {
 
   return (
     <div className="relative my-4">
-      <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-700 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
+      <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-800 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
         <span>{language}</span>
         <CopyButton text={code} />
       </div>
-      <div className="bg-white dark:bg-neutral-800 rounded-b-md border border-gray-200 dark:border-neutral-700 overflow-hidden">
+      <div className="bg-white dark:bg-neutral-900 rounded-b-md overflow-hidden border-l border-r border-b border-gray-100 dark:border-neutral-800">
         <SyntaxHighlighter
+          key={isDark ? 'dark' : 'light'}
           language={normalizedLanguage}
           style={isDark ? styles.oneDark : styles.oneLight}
           customStyle={{

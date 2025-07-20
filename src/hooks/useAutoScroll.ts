@@ -47,11 +47,17 @@ export function useAutoScroll({ dependencies, bottomThreshold = 20 }: UseAutoScr
     const container = containerRef.current;
     if (!container) return;
 
-    // Check if user is at bottom (with very sensitive threshold for touchpad)
-    // Make it much easier to disable auto-scroll with small scroll movements
-    const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    const isAtBottom = scrollBottom < bottomThreshold + 10; // Much more sensitive
-    isAutoScrollEnabledRef.current = isAtBottom;
+    // Throttle scroll events for better performance
+    const throttledCheck = () => {
+      // Check if user is at bottom (with very sensitive threshold for touchpad)
+      // Make it much easier to disable auto-scroll with small scroll movements
+      const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      const isAtBottom = scrollBottom < bottomThreshold + 10; // Much more sensitive
+      isAutoScrollEnabledRef.current = isAtBottom;
+    };
+
+    // Use requestAnimationFrame for better performance
+    requestAnimationFrame(throttledCheck);
   }, [bottomThreshold]);
 
   const enableAutoScroll = useCallback(() => {

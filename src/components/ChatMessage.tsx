@@ -1,7 +1,7 @@
 import { Markdown } from './Markdown';
 import { CopyButton } from './CopyButton';
 import { PlayButton } from './PlayButton';
-import { Bot, User, File, Brain } from "lucide-react";
+import { File } from "lucide-react";
 
 import { AttachmentType, Message, Role } from "../types/chat";
 import { getConfig } from "../config";
@@ -19,11 +19,14 @@ export function ChatMessage({ message }: ChatMessageProps) {
   if (!isUser && !message.content) {
     return (
       <div className="flex justify-start mb-4">
-        <div className="mr-3 pt-3">
-          <Bot className="w-6 h-6" />
-        </div>
-        <div className="flex items-center pt-5">
-          <Brain className="w-5 h-5 animate-bounce text-neutral-600 dark:text-neutral-400" />
+        <div className="flex-1 py-3">
+          <div className="space-y-2">
+            <div className="flex space-x-1">
+              <div className="h-2 w-2 bg-neutral-400 dark:bg-neutral-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="h-2 w-2 bg-neutral-400 dark:bg-neutral-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="h-2 w-2 bg-neutral-400 dark:bg-neutral-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -31,16 +34,14 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
   return (
     <div
-      className={`flex chat-bubble ${isUser ? "justify-end" : "justify-start"} mb-4`}
+      className={`flex chat-bubble ${isUser ? "justify-end" : "justify-start"} mb-4 group`}
     >
-      {!isUser && (
-        <div className="mr-3 pt-3">
-          <Bot className="w-6 h-6" />
-        </div>
-      )}
-
       <div
-        className={`max-w-[80%] rounded-lg p-3 ${isUser ? "chat-bubble-user" : "chat-bubble-assistant group"} break-words overflow-x-auto`}
+        className={`${
+          isUser 
+            ? "rounded-lg py-3 px-3 chat-bubble-user" 
+            : "flex-1 py-3"
+        } break-words overflow-x-auto`}
       >
         <Markdown>{message.content}</Markdown>
 
@@ -77,7 +78,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
         )}
         
         {!isUser && (
-          <div className="flex justify-between items-center mt-2">
+          <div className="flex justify-between items-center mt-2 chat-message-actions">
             <div className="flex items-center gap-2">
               <CopyButton text={message.content} />
               {enableTTS && <PlayButton text={message.content} />}
@@ -85,12 +86,6 @@ export function ChatMessage({ message }: ChatMessageProps) {
           </div>
         )}
       </div>
-
-      {isUser && (
-        <div className="ml-3 pt-3">
-          <User className="w-6 h-6" />
-        </div>
-      )}
     </div>
   );
 }

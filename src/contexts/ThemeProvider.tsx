@@ -27,7 +27,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Apply the class and persist explicit choices
   useLayoutEffect(() => {
-    document.documentElement.classList.toggle('dark', isDark);
+    // Check if the class is already correctly set (from our blocking script)
+    const currentlyDark = document.documentElement.classList.contains('dark');
+    
+    if (currentlyDark !== isDark) {
+      document.documentElement.classList.toggle('dark', isDark);
+    }
+    
     if (theme === 'system') {
       localStorage.removeItem('app_theme');
     } else {

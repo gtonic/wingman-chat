@@ -6,11 +6,28 @@
   <link rel="icon" type="image/png" href="logo.png" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="logo.png">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  
+  <!-- Prevent theme flashing by setting the dark class immediately -->
+  <script>
+    (function() {
+      // Get stored theme or use system preference
+      const stored = localStorage.getItem('app_theme');
+      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      // Determine if we should use dark mode
+      const shouldBeDark = stored === 'dark' || (stored !== 'light' && systemDark);
+      
+      // Apply dark class immediately if needed
+      if (shouldBeDark) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
 </head>
 
 <body>

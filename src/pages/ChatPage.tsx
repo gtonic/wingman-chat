@@ -214,7 +214,7 @@ export function ChatPage() {
               ref={containerRef}
               onScroll={handleScroll}
             >
-              <div className={`px-2 pt-20 pb-28 ${
+              <div className={`px-3 pt-20 pb-28 ${
                 layoutMode === 'wide'
                   ? 'max-w-full md:max-w-[80vw] mx-auto' 
                   : 'max-content-width'
@@ -254,8 +254,8 @@ export function ChatPage() {
 
         {/* Chat Input - hidden during voice mode */}
         {!isVoiceMode && (
-          <footer className={`absolute left-0 right-0 bg-transparent md:pb-4 pb-safe-bottom px-3 pl-safe-left pr-safe-right pointer-events-none transition-all duration-600 ease-out z-20 ${
-            messages.length === 0 ? 'bottom-1/3 transform translate-y-1/2' : 'bottom-0'
+          <footer className={`absolute left-0 right-0 bg-transparent md:pb-4 pb-0 px-3 pointer-events-none transition-all duration-600 ease-out z-20 ${
+            messages.length === 0 ? 'bottom-0 md:bottom-1/3 md:transform md:translate-y-1/2' : 'bottom-0'
           } ${isAnimating ? 'transition-all duration-600 ease-out' : ''}`}>
             <div className={`relative pointer-events-auto ${
               layoutMode === 'wide' ? 'max-w-full md:max-w-[80vw] mx-auto' : 'max-content-width'

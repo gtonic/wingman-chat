@@ -94,14 +94,10 @@ function AppContent() {
     <div className="h-dvh w-dvw flex overflow-hidden relative">
       {/* Fixed hamburger button for mobile - only visible when sidebar is closed */}
       {sidebarContent && !showSidebar && (
-        <div className="fixed top-0 left-0 z-40 md:hidden pt-safe-top pl-safe-left p-3">
+        <div className="fixed top-0 left-0 z-40 md:hidden p-3">
           <Button
             className="p-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 rounded transition-all duration-150 ease-out cursor-pointer"
             onClick={() => {
-              // Provide haptic feedback on supported devices
-              if ('vibrate' in navigator) {
-                navigator.vibrate(50);
-              }
               setShowSidebar(true);
             }}
             aria-label="Open sidebar"
@@ -136,7 +132,7 @@ function AppContent() {
       {/* Main app content */}
       <div className="flex-1 flex flex-col overflow-hidden relative z-10">
         {/* Fixed navigation bar with glass effect */}
-        <nav className="fixed top-0 left-0 right-0 z-30 px-3 py-2 pl-safe-left pr-safe-right pt-safe-top bg-neutral-50/60 dark:bg-neutral-950/80 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-900 nav-header">
+        <nav className="fixed top-0 left-0 right-0 z-30 px-3 py-2 bg-neutral-50/60 dark:bg-neutral-950/80 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-900 nav-header">
           <div className="flex items-center justify-between">
             {/* Left section */}
             <div className="flex items-center flex-1">

@@ -11,13 +11,13 @@ export function ChatSidebar() {
   const { setShowSidebar, showSidebar } = useSidebar();
   const [shouldAnimateItems, setShouldAnimateItems] = useState(false);
   
-  // Trigger item animations when sidebar opens
+  // Trigger item animations every time sidebar opens
   useEffect(() => {
     if (showSidebar) {
       // Small delay to ensure sidebar slide animation starts first
       const timer = setTimeout(() => {
         setShouldAnimateItems(true);
-      }, 100);
+      }, 150);
       return () => clearTimeout(timer);
     } else {
       setShouldAnimateItems(false);
@@ -57,7 +57,7 @@ export function ChatSidebar() {
     >
       {/* Static header with title and hamburger menu */}
       <div 
-        className="flex items-center justify-between px-2 py-2.5 pt-safe-top pl-safe-left pr-safe-right flex-shrink-0 min-h-14"
+        className="flex items-center justify-between px-2 py-2.5 flex-shrink-0 min-h-14"
       >
         <h2 className="text-xl font-semibold px-2 whitespace-nowrap overflow-hidden text-ellipsis text-neutral-800 dark:text-neutral-200">{config.title}</h2>
         <Button
@@ -71,7 +71,7 @@ export function ChatSidebar() {
       
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto sidebar-scroll">
-        <ul className="flex flex-col gap-2 py-2 px-2 pl-safe-left">
+        <ul className="flex flex-col gap-2 py-2 px-2">
         {sortedChats.map((chatItem, index) => (
           <li
             key={chatItem.id}
