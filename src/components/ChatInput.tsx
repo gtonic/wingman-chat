@@ -19,7 +19,6 @@ import {
 import { getConfig } from "../config";
 import { useChat } from "../hooks/useChat";
 import { useRepositories } from "../hooks/useRepositories";
-import { useTextPaste } from "../hooks/useTextPaste";
 import { useTranscription } from "../hooks/useTranscription";
 import { useDropZone } from "../hooks/useDropZone";
 import { useSettings } from "../hooks/useSettings";
@@ -46,9 +45,6 @@ export function ChatInput() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contentEditableRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Custom hook for plain text paste handling
-  const handlePaste = useTextPaste(contentEditableRef, setContent);
 
   // Generate static random placeholder text for new chats, updates when profile name changes
   const randomPlaceholder = useMemo(() => {
@@ -476,19 +472,20 @@ export function ChatInput() {
             suppressContentEditableWarning={true}
             onInput={(e) => {
               const target = e.target as HTMLDivElement;
+
+              const input = target.innerText || target.textContent || '';
+              setContent(input);
               
-              // Simple approach: use innerText which preserves line breaks
-              const newContent = target.innerText || '';
-              
-              setContent(newContent);
-              
-              // Hide prompt suggestions when user starts typing
-              if (newContent.trim() && showPromptSuggestions) {
+              if (input.trim() && showPromptSuggestions) {
                 setShowPromptSuggestions(false);
               }
             }}
             onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
+            onPaste={(e) => {
+              e.preventDefault();
+              const text = e.clipboardData.getData('text/plain');
+              document.execCommand('insertText', false, text);
+            }}
           />
           
           {/* CSS-animated placeholder */}
@@ -508,7 +505,7 @@ export function ChatInput() {
         </div>
 
         {/* Controls */}
-        <div className="flex items-center justify-between p-3 pt-0 pb-6 md:pb-3">
+        <div className="flex items-center justify-between p-3 pt-0 pb-8 md:pb-3">
           <div className="flex items-center gap-2">
             <Button
               type="button"

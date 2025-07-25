@@ -72,10 +72,6 @@ export function ChatPage() {
     dependencies: [chat, messages],
   });
 
-  // Animation state for chat input
-  const [isAnimating, setIsAnimating] = useState(false);
-  const prevMessagesCountRef = useRef(0);
-
   // Set up navigation actions (only once on mount)
   useEffect(() => {
     setRightActions(
@@ -161,22 +157,6 @@ export function ChatPage() {
     prevMessagesLengthRef.current = messages.length;
   }, [messages.length, enableAutoScroll]);
 
-  // Handle animation when first message is added
-  useEffect(() => {
-    if (prevMessagesCountRef.current === 0 && messages.length > 0) {
-      setIsAnimating(true);
-      // Reset animation state after animation completes
-      const animationTimer = setTimeout(() => {
-        setIsAnimating(false);
-      }, 600); // Match the CSS transition duration
-      
-      return () => {
-        clearTimeout(animationTimer);
-      };
-    }
-    prevMessagesCountRef.current = messages.length;
-  }, [messages.length]);
-
   return (
     <div className="h-full w-full flex overflow-hidden relative">
       {messages.length === 0 && <BackgroundImage />}
@@ -242,7 +222,7 @@ export function ChatPage() {
                 })()}
                 
                 {messages.map((message, idx) => (
-                  <ChatMessage key={idx} message={message} />
+                  <ChatMessage key={idx} message={message} isLast={idx === messages.length - 1} />
                 ))}
                 
                 {/* sentinel for scrollIntoView */}
@@ -254,14 +234,10 @@ export function ChatPage() {
 
         {/* Chat Input - hidden during voice mode */}
         {!isVoiceMode && (
-          <footer className={`absolute left-0 right-0 bg-transparent md:pb-4 pb-0 px-3 pointer-events-none transition-all duration-600 ease-out z-20 ${
-            messages.length === 0 ? 'bottom-0 md:bottom-1/3 md:transform md:translate-y-1/2' : 'bottom-0'
-          } ${isAnimating ? 'transition-all duration-600 ease-out' : ''}`}>
-            <div className={`relative pointer-events-auto ${
-              layoutMode === 'wide' ? 'max-w-full md:max-w-[80vw] mx-auto' : 'max-content-width'
-            } ${messages.length === 0 ? 'max-w-4xl' : ''} ${
-              showRepositoryDrawer ? 'md:mr-80 md:pr-4' : ''
-            }`}>
+          <footer className={`fixed bottom-0 left-0 right-0 md:px-3 md:pb-4 pointer-events-none z-20 transition-all duration-600 ease-out ${
+            messages.length === 0 ? 'md:bottom-1/3 md:transform md:translate-y-1/2' : ''
+          }`}>
+            <div className="relative pointer-events-auto md:max-w-4xl mx-auto">
               <ChatInput />
             </div>
           </footer>

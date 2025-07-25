@@ -132,7 +132,7 @@ body {
 }
 
 .chat-message-actions {
-  @apply opacity-0 transition-opacity duration-200;
+  @apply transition-opacity duration-200;
 }
 
 .group:hover .chat-message-actions {

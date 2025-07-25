@@ -8,9 +8,10 @@ import { getConfig } from "../config";
 
 type ChatMessageProps = {
   message: Message;
+  isLast?: boolean;
 };
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, ...props }: ChatMessageProps) {
   const isUser = message.role === Role.User;
   
   const config = getConfig();
@@ -78,10 +79,12 @@ export function ChatMessage({ message }: ChatMessageProps) {
         )}
         
         {!isUser && (
-          <div className="flex justify-between items-center mt-2 chat-message-actions">
+          <div className={`flex justify-between items-center mt-2 ${
+            props.isLast ? 'chat-message-actions !opacity-100' : 'chat-message-actions opacity-0'
+          }`}>
             <div className="flex items-center gap-2">
-              <CopyButton text={message.content} />
-              {enableTTS && <PlayButton text={message.content} />}
+              <CopyButton text={message.content} size={4} />
+              {enableTTS && <PlayButton text={message.content} size={4} />}
             </div>
           </div>
         )}
