@@ -10,7 +10,6 @@ interface CodeRendererProps {
 const CodeRenderer = memo(({ code, language }: CodeRendererProps) => {
   const { codeToHtml } = useShiki();
   const [html, setHtml] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (!code) {
@@ -19,7 +18,6 @@ const CodeRenderer = memo(({ code, language }: CodeRendererProps) => {
     }
 
     let isCancelled = false;
-    setIsProcessing(true);
 
     const highlightCode = async () => {
       try {
@@ -37,10 +35,6 @@ const CodeRenderer = memo(({ code, language }: CodeRendererProps) => {
         if (!isCancelled) {
           setHtml('');
         }
-      } finally {
-        if (!isCancelled) {
-          setIsProcessing(false);
-        }
       }
     };
 
@@ -51,14 +45,11 @@ const CodeRenderer = memo(({ code, language }: CodeRendererProps) => {
     };
   }, [code, language, codeToHtml]);
 
-  const renderCodeBlock = (content: React.ReactNode, showSpinner = false) => (
+  const renderCodeBlock = (content: React.ReactNode) => (
     <div className="relative my-4">
       <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-800 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
         <span>{language}</span>
         <div className="flex items-center space-x-2">
-          {showSpinner && (
-            <div className="animate-spin rounded-full h-3 w-3 border border-blue-500 border-t-transparent" />
-          )}
           <CopyButton text={code} />
         </div>
       </div>
@@ -67,17 +58,6 @@ const CodeRenderer = memo(({ code, language }: CodeRendererProps) => {
       </div>
     </div>
   );
-
-  const isLoading = isProcessing;
-
-  if (isLoading) {
-    return renderCodeBlock(
-      <pre className="p-4 text-gray-800 dark:text-neutral-300 text-sm whitespace-pre-wrap overflow-x-auto">
-        <code>{code}</code>
-      </pre>,
-      true
-    );
-  }
 
   if (!html) {
     return renderCodeBlock(

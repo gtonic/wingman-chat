@@ -82,6 +82,7 @@ button[data-headlessui-state]:disabled,
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: none;
   overflow-anchor: none;
+  overflow-x: hidden;
 }
 
 .sidebar-scroll::-webkit-scrollbar {

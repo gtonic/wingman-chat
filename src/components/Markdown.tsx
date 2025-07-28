@@ -8,6 +8,7 @@ import { MermaidRenderer } from './MermaidRenderer';
 import { CardRenderer } from './CardRenderer';
 import { CodeRenderer } from './CodeRenderer';
 import { HtmlRenderer } from './HtmlRenderer';
+import { CsvRenderer } from './CsvRenderer';
 import { MediaPlayer } from './MediaPlayer';
 import { isAudioUrl, isVideoUrl } from '../lib/utils';
 
@@ -17,25 +18,25 @@ const components: Partial<Components> = {
             {children}
         </>;
     },
-    ol: ({ children, ...props }) => {
-        return (
-            <ol className="list-decimal list-inside ml-2" {...props}>
-                {children}
-            </ol>
-        );
-    },
     li: ({ children, ...props }) => {
         return (
-            <li className="py-1" {...props}>
+            <li className="py-1 ml-0" {...props}>
                 {children}
             </li>
         );
     },
     ul: ({ children, ...props }) => {
         return (
-            <ul className="list-disc list-inside ml-2" {...props}>
+            <ul className="list-disc list-outside ml-6 pl-0" {...props}>
                 {children}
             </ul>
+        );
+    },
+    ol: ({ children, ...props }) => {
+        return (
+            <ol className="list-decimal list-outside ml-6 pl-0" {...props}>
+                {children}
+            </ol>
         );
     },
     strong: ({ children, ...props }) => {
@@ -192,6 +193,10 @@ const components: Partial<Components> = {
 
         if (language === "html" || language === "htm") {
             return <HtmlRenderer html={text} language={language} />;
+        }
+
+        if (language === "csv" || language === "tsv") {
+            return <CsvRenderer csv={text} language={language} />;
         }
 
         if (language === "adaptivecard" || language === "adaptive-card") {
