@@ -159,7 +159,7 @@ export function ChatPage() {
 
   return (
     <div className="h-full w-full flex overflow-hidden relative">
-      {messages.length === 0 && <BackgroundImage />}
+      <BackgroundImage opacity={messages.length === 0 ? 80 : 0} />
       
       {/* Main content area */}
       <div className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-300 ${

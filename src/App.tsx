@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MessageCircle, Languages, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { Button } from "@headlessui/react";
 import { ChatPage } from "./pages/ChatPage";
@@ -25,6 +25,44 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>("chat");
   const { showSidebar, setShowSidebar, toggleSidebar, sidebarContent } = useSidebar();
   const { leftActions, rightActions } = useNavigation();
+  
+  // Refs and state for animated slider
+  const mobileRef = useRef<HTMLDivElement>(null);
+  const tabletRef = useRef<HTMLDivElement>(null);
+  const desktopRef = useRef<HTMLDivElement>(null);
+  const [sliderStyles, setSliderStyles] = useState({
+    mobile: { left: 0, width: 0 },
+    tablet: { left: 0, width: 0 },
+    desktop: { left: 0, width: 0 }
+  });
+
+  // Update slider positions for all breakpoints
+  useEffect(() => {
+    const updateSlider = (containerRef: React.RefObject<HTMLDivElement | null>, key: 'mobile' | 'tablet' | 'desktop') => {
+      if (containerRef.current) {
+        const activeButton = containerRef.current.querySelector(`[data-page="${currentPage}"]`) as HTMLElement;
+        if (activeButton) {
+          const containerRect = containerRef.current.getBoundingClientRect();
+          const buttonRect = activeButton.getBoundingClientRect();
+          
+          setSliderStyles(prev => ({
+            ...prev,
+            [key]: {
+              left: buttonRect.left - containerRect.left,
+              width: buttonRect.width
+            }
+          }));
+        }
+      }
+    };
+
+    // Initial update of all sliders
+    setTimeout(() => {
+      updateSlider(mobileRef, 'mobile');
+      updateSlider(tabletRef, 'tablet');
+      updateSlider(desktopRef, 'desktop');
+    }, 0);
+  }, [currentPage]);
 
   // Simple hash-based router
   useEffect(() => {
@@ -56,19 +94,45 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Auto-close sidebar on mobile screens on mount and resize
+  // Auto-close sidebar on mobile screens and update sliders on resize
   useEffect(() => {
     const handleResize = () => {
+      // Auto-close sidebar on mobile
       if (window.innerWidth < 768) {
         setShowSidebar(false);
       }
+      
+      // Update slider positions after a short delay
+      setTimeout(() => {
+        const updateSlider = (containerRef: React.RefObject<HTMLDivElement | null>, key: 'mobile' | 'tablet' | 'desktop') => {
+          if (containerRef.current) {
+            const activeButton = containerRef.current.querySelector(`[data-page="${currentPage}"]`) as HTMLElement;
+            if (activeButton) {
+              const containerRect = containerRef.current.getBoundingClientRect();
+              const buttonRect = activeButton.getBoundingClientRect();
+              
+              setSliderStyles(prev => ({
+                ...prev,
+                [key]: {
+                  left: buttonRect.left - containerRect.left,
+                  width: buttonRect.width
+                }
+              }));
+            }
+          }
+        };
+
+        updateSlider(mobileRef, 'mobile');
+        updateSlider(tabletRef, 'tablet');
+        updateSlider(desktopRef, 'desktop');
+      }, 100);
     };
 
     handleResize();
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [setShowSidebar]);
+  }, [setShowSidebar, currentPage, mobileRef, tabletRef, desktopRef]);
 
   // Prevent default file-drop behavior on the rest of the page (avoid navigation)
   useEffect(() => {
@@ -135,8 +199,8 @@ function AppContent() {
         <nav className="fixed top-0 left-0 right-0 z-30 px-3 py-2 bg-neutral-50/60 dark:bg-neutral-950/80 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-900 nav-header">
           <div className="flex items-center justify-between">
             {/* Left section */}
-            <div className="flex items-center flex-1">
-              {/* Fixed space for hamburger menu - always reserve the space */}
+            <div className="flex items-center gap-1 flex-1">
+              {/* Fixed space for sidebar button - always reserve the space */}
               <div className="w-12 flex justify-start">
                 {sidebarContent && (
                   <Button
@@ -148,32 +212,131 @@ function AppContent() {
                   </Button>
                 )}
               </div>
+              
+              {/* Modern pill navigation - positioned left on mobile, center on sm+ */}
+              <div className="flex items-center sm:hidden">
+                <div 
+                  ref={mobileRef}
+                  className="relative flex items-center bg-neutral-200/30 dark:bg-neutral-800/40 backdrop-blur-sm rounded-full p-1 shadow-sm border border-neutral-300/20 dark:border-neutral-700/20"
+                >
+                  {/* Animated slider background */}
+                  <div
+                    className="absolute bg-white dark:bg-neutral-950 rounded-full shadow-sm transition-all duration-300 ease-out"
+                    style={{
+                      left: `${sliderStyles.mobile.left}px`,
+                      width: `${sliderStyles.mobile.width}px`,
+                      height: 'calc(100% - 8px)',
+                      top: '4px',
+                    }}
+                  />
+                  
+                  {pages.map(({ key, label, icon }) => (
+                    <Button
+                      key={key}
+                      data-page={key}
+                      onClick={() => {
+                        setCurrentPage(key);
+                        window.location.hash = `#${key}`;
+                      }}
+                      className={`
+                        relative z-10 px-3 py-1.5 rounded-full font-medium transition-all duration-200 ease-out
+                        flex items-center gap-2 text-sm
+                        ${currentPage === key
+                          ? "text-neutral-900 dark:text-neutral-100"
+                          : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200"
+                        }
+                      `}
+                    >
+                      {icon}
+                      <span className="hidden sm:inline">{label}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              
               {leftActions}
             </div>
             
-            {/* Center section - Tab buttons */}
-            <div className="flex items-center justify-center">
-              {pages.map(({ key, label, icon }) => (
-                <Button
-                  key={key}
-                  onClick={() => {
-                    setCurrentPage(key);
-                    window.location.hash = `#${key}`;
+            {/* Center section - Modern pill navigation for sm+ breakpoints */}
+            <div className="hidden sm:flex md:hidden items-center justify-center absolute left-1/2 transform -translate-x-1/2">
+              <div 
+                ref={tabletRef}
+                className="relative flex items-center bg-neutral-200/30 dark:bg-neutral-800/40 backdrop-blur-sm rounded-full p-1 shadow-sm border border-neutral-300/20 dark:border-neutral-700/20"
+              >
+                {/* Animated slider background */}
+                <div
+                  className="absolute bg-white dark:bg-neutral-950 rounded-full shadow-sm transition-all duration-300 ease-out"
+                  style={{
+                    left: `${sliderStyles.tablet.left}px`,
+                    width: `${sliderStyles.tablet.width}px`,
+                    height: 'calc(100% - 8px)',
+                    top: '4px',
                   }}
-                  className={`px-3 py-2 font-medium transition-colors flex items-center gap-2 relative ${
-                    currentPage === key
-                      ? "text-neutral-900 dark:text-neutral-100"
-                      : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200"
-                  }`}
-                >
-                  {icon}
-                  <span className="hidden sm:inline">{label}</span>
-                  {/* Underline for active tab */}
-                  {currentPage === key && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900 dark:bg-neutral-100"></div>
-                  )}
-                </Button>
-              ))}
+                />
+                
+                {pages.map(({ key, label, icon }) => (
+                  <Button
+                    key={key}
+                    data-page={key}
+                    onClick={() => {
+                      setCurrentPage(key);
+                      window.location.hash = `#${key}`;
+                    }}
+                    className={`
+                      relative z-10 px-3 py-1.5 rounded-full font-medium transition-all duration-200 ease-out
+                      flex items-center gap-2 text-sm
+                      ${currentPage === key
+                        ? "text-neutral-900 dark:text-neutral-100"
+                        : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200"
+                      }
+                    `}
+                  >
+                    {icon}
+                    <span className="hidden sm:inline">{label}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Center section - Modern pill navigation for desktop */}
+            <div className="hidden md:flex items-center justify-center">
+              <div 
+                ref={desktopRef}
+                className="relative flex items-center bg-neutral-200/30 dark:bg-neutral-800/40 backdrop-blur-sm rounded-full p-1 shadow-sm border border-neutral-300/20 dark:border-neutral-700/20"
+              >
+                {/* Animated slider background */}
+                <div
+                  className="absolute bg-white dark:bg-neutral-950 rounded-full shadow-sm transition-all duration-300 ease-out"
+                  style={{
+                    left: `${sliderStyles.desktop.left}px`,
+                    width: `${sliderStyles.desktop.width}px`,
+                    height: 'calc(100% - 8px)',
+                    top: '4px',
+                  }}
+                />
+                
+                {pages.map(({ key, label, icon }) => (
+                  <Button
+                    key={key}
+                    data-page={key}
+                    onClick={() => {
+                      setCurrentPage(key);
+                      window.location.hash = `#${key}`;
+                    }}
+                    className={`
+                      relative z-10 px-3 py-1.5 rounded-full font-medium transition-all duration-200 ease-out
+                      flex items-center gap-2 text-sm
+                      ${currentPage === key
+                        ? "text-neutral-900 dark:text-neutral-100"
+                        : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200"
+                      }
+                    `}
+                  >
+                    {icon}
+                    <span className="hidden sm:inline">{label}</span>
+                  </Button>
+                ))}
+              </div>
             </div>
             
             {/* Right section */}

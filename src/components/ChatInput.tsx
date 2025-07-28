@@ -354,7 +354,11 @@ export function ChatInput() {
         className={`chat-input-container ${
           isDragging 
             ? 'border-2 border-dashed border-slate-400 dark:border-slate-500 bg-slate-50/80 dark:bg-slate-900/40 shadow-2xl shadow-slate-500/30 dark:shadow-slate-400/20 scale-[1.02] transition-all duration-200 rounded-lg md:rounded-2xl' 
-            : `border-0 md:border-2 border-t-2 border-solid border-neutral-200 dark:border-neutral-900 ${
+            : `border-0 md:border-2 border-t-2 border-solid ${
+                messages.length === 0 
+                  ? 'border-neutral-200/50' 
+                  : 'border-neutral-200'
+              } dark:border-neutral-900 ${
                 messages.length === 0 
                   ? 'bg-white/60 dark:bg-neutral-950/70' 
                   : 'bg-white/30 dark:bg-neutral-950/50'
