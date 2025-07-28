@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from 'react';
-import { useTheme } from '../hooks/useTheme';
+import { useShiki } from '../hooks/useShiki';
 import { CopyButton } from './CopyButton';
 
 interface CodeRendererProps {
@@ -7,140 +7,101 @@ interface CodeRendererProps {
   language: string;
 }
 
-interface SyntaxHighlighterType {
-  default: React.ComponentType<any>;
-}
+const CodeRenderer = memo(({ code, language }: CodeRendererProps) => {
+  const { codeToHtml } = useShiki();
+  const [html, setHtml] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
-interface StylesType {
-  oneDark: any;
-  oneLight: any;
-}
-
-// Language aliases and normalization mappings (only for actual transformations)
-const languageMap: Record<string, string> = {
-  'bash': 'shell',
-  'c++': 'cpp',
-  'cs': 'csharp',
-  'html': 'markup',
-  'js': 'javascript',
-  'jsx': 'javascript',
-  'md': 'markdown',
-  'plaintext': 'text',
-  'py': 'python',
-  'rb': 'ruby',
-  'rs': 'rust',
-  'sh': 'shell',
-  'ts': 'typescript',
-  'tsx': 'typescript',
-  'xml': 'markup',
-  'yml': 'yaml'
-};
-
-const NonMemoizedCodeRenderer = ({ code, language }: CodeRendererProps) => {
-  const { isDark } = useTheme();
-  const [SyntaxHighlighter, setSyntaxHighlighter] = useState<React.ComponentType<any> | null>(null);
-  const [styles, setStyles] = useState<StylesType | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Dynamically import syntax highlighter
   useEffect(() => {
-    const loadSyntaxHighlighter = async () => {
-      try {
-        const [highlighterModule, stylesModule] = await Promise.all([
-          import("react-syntax-highlighter").then(module => ({ 
-            default: module.Prism 
-          })) as Promise<SyntaxHighlighterType>,
-          import("react-syntax-highlighter/dist/esm/styles/prism").then(module => ({
-            oneDark: module.oneDark,
-            oneLight: module.oneLight
-          })) as Promise<StylesType>
-        ]);
+    if (!code) {
+      setHtml('');
+      return;
+    }
 
-        setSyntaxHighlighter(() => highlighterModule.default);
-        setStyles(stylesModule);
-        setIsLoading(false);
+    let isCancelled = false;
+    setIsProcessing(true);
+
+    const highlightCode = async () => {
+      try {
+        const langId = language.toLowerCase();
+        
+        if (isCancelled) return;
+
+        const html = await codeToHtml(code, langId);
+        
+        if (!isCancelled) {
+          setHtml(html);
+        }
       } catch (error) {
-        console.error('Failed to load syntax highlighter:', error);
-        setIsLoading(false);
+        console.error('Failed to highlight code:', error);
+        if (!isCancelled) {
+          setHtml('');
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsProcessing(false);
+        }
       }
     };
 
-    loadSyntaxHighlighter();
-  }, []);
+    highlightCode();
 
-  const normalizedLanguage = languageMap[language.toLowerCase()] || language.toLowerCase();
+    return () => {
+      isCancelled = true;
+    };
+  }, [code, language, codeToHtml]);
 
-  // Show loading state while syntax highlighter is loading
-  if (isLoading) {
-    return (
-      <div className="relative my-4">
-        <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-800 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
-          <span>{language}</span>
-          <div className="flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-3 w-3 border border-blue-500 border-t-transparent"></div>
-            <CopyButton text={code} />
-          </div>
-        </div>
-        <div className="bg-white dark:bg-neutral-900 p-4 rounded-b-md border-l border-r border-b border-gray-100 dark:border-neutral-800">
-          <pre className="text-gray-800 dark:text-neutral-300 text-sm whitespace-pre-wrap overflow-x-auto">
-            <code>{code}</code>
-          </pre>
-        </div>
-      </div>
-    );
-  }
-
-  // Fallback to plain text if syntax highlighter failed to load
-  if (!SyntaxHighlighter || !styles) {
-    return (
-      <div className="relative my-4">
-        <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-800 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
-          <span>{language}</span>
-          <CopyButton text={code} />
-        </div>
-        <div className="bg-white dark:bg-neutral-900 p-4 rounded-b-md border-l border-r border-b border-gray-100 dark:border-neutral-800">
-          <pre className="text-gray-800 dark:text-neutral-300 text-sm whitespace-pre-wrap overflow-x-auto">
-            <code>{code}</code>
-          </pre>
-        </div>
-      </div>
-    );
-  }
-
-  return (
+  const renderCodeBlock = (content: React.ReactNode, showSpinner = false) => (
     <div className="relative my-4">
       <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-800 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
         <span>{language}</span>
-        <CopyButton text={code} />
+        <div className="flex items-center space-x-2">
+          {showSpinner && (
+            <div className="animate-spin rounded-full h-3 w-3 border border-blue-500 border-t-transparent" />
+          )}
+          <CopyButton text={code} />
+        </div>
       </div>
       <div className="bg-white dark:bg-neutral-900 rounded-b-md overflow-hidden border-l border-r border-b border-gray-100 dark:border-neutral-800">
-        <SyntaxHighlighter
-          key={isDark ? 'dark' : 'light'}
-          language={normalizedLanguage}
-          style={isDark ? styles.oneDark : styles.oneLight}
-          customStyle={{
-            margin: 0,
-            padding: '1rem',
-            backgroundColor: 'transparent',
-            fontSize: '0.875rem',
-            lineHeight: '1.25rem'
-          }}
-          codeTagProps={{
-            style: {
-              fontFamily: 'Fira Code, Monaco, Cascadia Code, Roboto Mono, monospace'
-            }
-          }}
-        >
-          {code}
-        </SyntaxHighlighter>
+        {content}
       </div>
     </div>
   );
-};
 
-export const CodeRenderer = memo(
-  NonMemoizedCodeRenderer,
-  (prevProps, nextProps) => 
-    prevProps.code === nextProps.code && 
-    prevProps.language === nextProps.language
-);
+  const isLoading = isProcessing;
+
+  if (isLoading) {
+    return renderCodeBlock(
+      <pre className="p-4 text-gray-800 dark:text-neutral-300 text-sm whitespace-pre-wrap overflow-x-auto">
+        <code>{code}</code>
+      </pre>,
+      true
+    );
+  }
+
+  if (!html) {
+    return renderCodeBlock(
+      <pre className="p-4 text-gray-800 dark:text-neutral-300 text-sm whitespace-pre-wrap overflow-x-auto">
+        <code>{code}</code>
+      </pre>
+    );
+  }
+
+  return renderCodeBlock(
+    <div 
+      dangerouslySetInnerHTML={{ __html: html }}
+      style={{
+        margin: 0,
+        padding: '1rem',
+        fontSize: '0.875rem',
+        lineHeight: '1.25rem',
+        fontFamily: 'Fira Code, Monaco, Cascadia Code, Roboto Mono, monospace',
+        background: 'transparent'
+      }}
+    />
+  );
+});
+
+CodeRenderer.displayName = 'CodeRenderer';
+
+export { CodeRenderer };

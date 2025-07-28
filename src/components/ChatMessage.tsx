@@ -44,7 +44,11 @@ export function ChatMessage({ message, ...props }: ChatMessageProps) {
             : "flex-1 py-3"
         } break-words overflow-x-auto`}
       >
-        <Markdown>{message.content}</Markdown>
+        {isUser ? (
+          <pre className="whitespace-pre-wrap font-sans">{message.content}</pre>
+        ) : (
+          <Markdown>{message.content}</Markdown>
+        )}
 
         {message.attachments && message.attachments.length > 0 && (
           <div className="flex flex-col gap-2 pt-2">
