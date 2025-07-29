@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircle, Languages, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { Button } from "@headlessui/react";
 import { ChatPage } from "./pages/ChatPage";
@@ -36,33 +36,34 @@ function AppContent() {
     desktop: { left: 0, width: 0 }
   });
 
+  // Shared function to update slider positions
+  const updateSlider = useCallback((containerRef: React.RefObject<HTMLDivElement | null>, key: 'mobile' | 'tablet' | 'desktop') => {
+    if (containerRef.current) {
+      const activeButton = containerRef.current.querySelector(`[data-page="${currentPage}"]`) as HTMLElement;
+      if (activeButton) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const buttonRect = activeButton.getBoundingClientRect();
+        
+        setSliderStyles(prev => ({
+          ...prev,
+          [key]: {
+            left: buttonRect.left - containerRect.left,
+            width: buttonRect.width
+          }
+        }));
+      }
+    }
+  }, [currentPage]);
+
   // Update slider positions for all breakpoints
   useEffect(() => {
-    const updateSlider = (containerRef: React.RefObject<HTMLDivElement | null>, key: 'mobile' | 'tablet' | 'desktop') => {
-      if (containerRef.current) {
-        const activeButton = containerRef.current.querySelector(`[data-page="${currentPage}"]`) as HTMLElement;
-        if (activeButton) {
-          const containerRect = containerRef.current.getBoundingClientRect();
-          const buttonRect = activeButton.getBoundingClientRect();
-          
-          setSliderStyles(prev => ({
-            ...prev,
-            [key]: {
-              left: buttonRect.left - containerRect.left,
-              width: buttonRect.width
-            }
-          }));
-        }
-      }
-    };
-
     // Initial update of all sliders
     setTimeout(() => {
       updateSlider(mobileRef, 'mobile');
       updateSlider(tabletRef, 'tablet');
       updateSlider(desktopRef, 'desktop');
     }, 0);
-  }, [currentPage]);
+  }, [currentPage, updateSlider]);
 
   // Simple hash-based router
   useEffect(() => {
@@ -104,24 +105,6 @@ function AppContent() {
       
       // Update slider positions after a short delay
       setTimeout(() => {
-        const updateSlider = (containerRef: React.RefObject<HTMLDivElement | null>, key: 'mobile' | 'tablet' | 'desktop') => {
-          if (containerRef.current) {
-            const activeButton = containerRef.current.querySelector(`[data-page="${currentPage}"]`) as HTMLElement;
-            if (activeButton) {
-              const containerRect = containerRef.current.getBoundingClientRect();
-              const buttonRect = activeButton.getBoundingClientRect();
-              
-              setSliderStyles(prev => ({
-                ...prev,
-                [key]: {
-                  left: buttonRect.left - containerRect.left,
-                  width: buttonRect.width
-                }
-              }));
-            }
-          }
-        };
-
         updateSlider(mobileRef, 'mobile');
         updateSlider(tabletRef, 'tablet');
         updateSlider(desktopRef, 'desktop');
@@ -132,7 +115,7 @@ function AppContent() {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [setShowSidebar, currentPage, mobileRef, tabletRef, desktopRef]);
+  }, [setShowSidebar, currentPage, updateSlider]);
 
   // Prevent default file-drop behavior on the rest of the page (avoid navigation)
   useEffect(() => {
