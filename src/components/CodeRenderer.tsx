@@ -1,6 +1,7 @@
 import { memo, useState, useEffect } from 'react';
-import { useShiki } from '../hooks/useShiki';
+import { codeToHtml } from 'shiki';
 import { CopyButton } from './CopyButton';
+import { useTheme } from '../hooks/useTheme';
 
 interface CodeRendererProps {
   code: string;
@@ -8,7 +9,7 @@ interface CodeRendererProps {
 }
 
 const CodeRenderer = memo(({ code, language }: CodeRendererProps) => {
-  const { codeToHtml } = useShiki();
+  const { isDark } = useTheme();
   const [html, setHtml] = useState<string>('');
 
   useEffect(() => {
@@ -25,7 +26,14 @@ const CodeRenderer = memo(({ code, language }: CodeRendererProps) => {
         
         if (isCancelled) return;
 
-        const html = await codeToHtml(code, langId);
+        const html = await codeToHtml(code, {
+          lang: langId,
+          theme: isDark ? 'one-dark-pro' : 'one-light',
+          colorReplacements: {
+            '#fafafa': 'transparent', // one-light background
+            '#282c34': 'transparent', // one-dark-pro background
+          }
+        });
         
         if (!isCancelled) {
           setHtml(html);
@@ -43,14 +51,14 @@ const CodeRenderer = memo(({ code, language }: CodeRendererProps) => {
     return () => {
       isCancelled = true;
     };
-  }, [code, language, codeToHtml]);
+  }, [code, language, isDark]);
 
   const renderCodeBlock = (content: React.ReactNode) => (
     <div className="relative my-4">
       <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-800 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
         <span>{language}</span>
         <div className="flex items-center space-x-2">
-          <CopyButton text={code} />
+          <CopyButton text={code} className="h-4 w-4" />
         </div>
       </div>
       <div className="bg-white dark:bg-neutral-900 rounded-b-md overflow-hidden border-l border-r border-b border-gray-100 dark:border-neutral-800">
@@ -61,7 +69,7 @@ const CodeRenderer = memo(({ code, language }: CodeRendererProps) => {
 
   if (!html) {
     return renderCodeBlock(
-      <pre className="p-4 text-gray-800 dark:text-neutral-300 text-sm whitespace-pre-wrap overflow-x-auto">
+      <pre className="p-4 text-gray-800 dark:text-neutral-300 text-sm whitespace-pre overflow-x-auto">
         <code>{code}</code>
       </pre>
     );
@@ -69,6 +77,7 @@ const CodeRenderer = memo(({ code, language }: CodeRendererProps) => {
 
   return renderCodeBlock(
     <div 
+      className="overflow-x-auto"
       dangerouslySetInnerHTML={{ __html: html }}
       style={{
         margin: 0,

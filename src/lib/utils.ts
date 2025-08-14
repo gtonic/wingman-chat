@@ -97,44 +97,12 @@ export async function resizeImageBlob(
   });
 }
 
-export function supportsScreenshot(): boolean {
-  return "mediaDevices" in navigator && "getDisplayMedia" in navigator.mediaDevices;
+export function getFileName(path: string): string {
+  return path.split('/').pop() || path;
 }
 
-export async function captureScreenshot(): Promise<string> {
-  try {
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: false,
-    });
-
-    const video = document.createElement("video");
-    video.srcObject = stream;
-
-    await new Promise((resolve) => {
-      video.onloadedmetadata = () => {
-        video.play();
-        resolve(null);
-      };
-    });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext("2d");
-    ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    stream.getTracks().forEach((track) => track.stop());
-
-    return canvas.toDataURL("image/png");
-  } catch (err) {
-    console.error("Error capturing screenshot:", err);
-    throw err;
-  }
-}
-
-export function getFileExt(filename: string): string {
+export function getFileExt(path: string): string {
+  const filename = getFileName(path);
   const parts = filename.split('.');
   return parts.length > 1 ? "." + parts.pop() || "" : "";
 }
@@ -177,6 +145,8 @@ export const documentTypes = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".msg",
+  ".eml",
 ];
 
 export const supportedTypes = [...textTypes, ...imageTypes, ...documentTypes];

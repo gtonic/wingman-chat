@@ -19,6 +19,7 @@ export interface RepositoryHook {
   removeFile: (fileId: string) => void;
   queryChunks: (query: string, topK?: number) => Promise<FileChunk[]>;
   queryTools: () => Tool[];
+  queryInstructions: () => string;
 }
 
 // Shared client instance for all repositories
@@ -29,12 +30,12 @@ export function useRepository(repositoryId: string): RepositoryHook {
   const [vectorDB, setVectorDB] = useState(() => new VectorDB());
   const currentRepositoryIdRef = useRef(repositoryId);
   const repositoriesRef = useRef(repositories);
-  
+
   // Update refs whenever values change
   useEffect(() => {
     currentRepositoryIdRef.current = repositoryId;
   }, [repositoryId]);
-  
+
   useEffect(() => {
     repositoriesRef.current = repositories;
   }, [repositories]);
@@ -46,11 +47,11 @@ export function useRepository(repositoryId: string): RepositoryHook {
   // Handle repository changes and rebuild vector database
   useEffect(() => {
     let isCancelled = false;
-    
+
     const rebuildVectorDB = () => {
       // Immediately clear current vector DB
       setVectorDB(new VectorDB());
-      
+
       if (files.length > 0) {
         // Rebuild vector database for this repository
         const newVectorDB = new VectorDB();
@@ -67,7 +68,7 @@ export function useRepository(repositoryId: string): RepositoryHook {
             });
           }
         });
-        
+
         // Only update state if this effect hasn't been cancelled
         if (!isCancelled) {
           setVectorDB(newVectorDB);
@@ -86,7 +87,7 @@ export function useRepository(repositoryId: string): RepositoryHook {
   const removeFile = useCallback((fileId: string) => {
     // Remove documents from vector database for this file
     const currentRepoId = currentRepositoryIdRef.current;
-    
+
     // Find the file being removed to get its segments count
     const fileToRemove = files.find(f => f.id === fileId);
     if (fileToRemove && fileToRemove.segments) {
@@ -96,26 +97,26 @@ export function useRepository(repositoryId: string): RepositoryHook {
         vectorDB.deleteDocument(documentId);
       }
     }
-    
+
     // Remove from repository
     removeFileFromRepo(repositoryId, fileId);
   }, [vectorDB, repositoryId, removeFileFromRepo, files]);
 
   const processFile = useCallback(async (file: File, fileId: string) => {
     const currentRepoId = currentRepositoryIdRef.current;
-    
+
     // Convert File to Blob for storage
     const content = new Blob([file], { type: file.type });
-    
+
     // Extract text
     const text = await client.extractText(file);
     // Check if repository changed or file was removed during processing
     if (currentRepositoryIdRef.current !== currentRepoId) return;
-    
+
     // Check if file still exists in repository (might have been deleted)
     const currentRepo = repositoriesRef.current.find(r => r.id === currentRepoId);
     if (!currentRepo?.files?.find(f => f.id === fileId)) return;
-    
+
     upsertFile(repositoryId, {
       id: fileId,
       name: file.name,
@@ -130,11 +131,11 @@ export function useRepository(repositoryId: string): RepositoryHook {
     const segments = await client.segmentText(file);
     // Check if repository changed or file was removed during processing
     if (currentRepositoryIdRef.current !== currentRepoId) return;
-    
+
     // Check if file still exists in repository (might have been deleted)
     const currentRepo2 = repositoriesRef.current.find(r => r.id === currentRepoId);
     if (!currentRepo2?.files?.find(f => f.id === fileId)) return;
-    
+
     upsertFile(repositoryId, {
       id: fileId,
       name: file.name,
@@ -150,20 +151,20 @@ export function useRepository(repositoryId: string): RepositoryHook {
     const model = repository?.embedder ?? '';
 
     let completedCount = 0;
-    
+
     const chunks = await Promise.all(
       segments.map(segment =>
         limit(async () => {
           const vector = await client.embedText(model, segment);
           completedCount++;
-          
+
           // Check if repository changed or file was removed during processing
           if (currentRepositoryIdRef.current !== currentRepoId) return { text: segment, vector };
-          
+
           // Check if file still exists in repository (might have been deleted)
           const currentRepo3 = repositoriesRef.current.find(r => r.id === currentRepoId);
           if (!currentRepo3?.files?.find(f => f.id === fileId)) return { text: segment, vector };
-          
+
           const progress = 20 + (completedCount / segments.length) * 80;
           upsertFile(repositoryId, {
             id: fileId,
@@ -174,7 +175,7 @@ export function useRepository(repositoryId: string): RepositoryHook {
             text,
             uploadedAt: new Date(),
           });
-          
+
           return { text: segment, vector };
         })
       )
@@ -182,7 +183,7 @@ export function useRepository(repositoryId: string): RepositoryHook {
 
     // Final check before storing results
     if (currentRepositoryIdRef.current !== currentRepoId) return;
-    
+
     // Check if file still exists in repository (might have been deleted)
     const currentRepo4 = repositoriesRef.current.find(r => r.id === currentRepoId);
     if (!currentRepo4?.files?.find(f => f.id === fileId)) return;
@@ -214,10 +215,10 @@ export function useRepository(repositoryId: string): RepositoryHook {
   const addFile = useCallback(async (file: File) => {
     const fileId = crypto.randomUUID();
     const currentRepoId = currentRepositoryIdRef.current;
-    
+
     // Convert File to Blob for storage
     const content = new Blob([file], { type: file.type });
-    
+
     // Add file to repository as processing
     upsertFile(repositoryId, {
       id: fileId,
@@ -253,7 +254,7 @@ export function useRepository(repositoryId: string): RepositoryHook {
       const model = repository?.embedder ?? '';
       const vector = await client.embedText(model, query);
       const results = vectorDB.queryDocuments(vector, topK);
-      
+
       // Filter and convert results
       return results
         .filter(result => result.document.id.startsWith(`${repositoryId}:`))
@@ -262,7 +263,7 @@ export function useRepository(repositoryId: string): RepositoryHook {
 
           const fileId = parts[1];
           const file = files.find(f => f.id === fileId);
-          
+
           return {
             file: file!,
             text: result.document.text,
@@ -280,7 +281,7 @@ export function useRepository(repositoryId: string): RepositoryHook {
     if (files.length === 0) {
       return [];
     }
-    
+
     return [
       {
         name: 'query_knowledge_database',
@@ -298,7 +299,7 @@ export function useRepository(repositoryId: string): RepositoryHook {
         function: async (args: Record<string, unknown>): Promise<string> => {
           const query = args.query as string;
           console.log(`🔍 find_documents tool invoked with query: "${query}"`);
-          
+
           if (!query) {
             console.log('❌ No query provided');
             return JSON.stringify({ error: 'No query provided' });
@@ -307,7 +308,7 @@ export function useRepository(repositoryId: string): RepositoryHook {
           try {
             const results = await queryChunks(query, 5);
             console.log(`📊 Query results: ${results.length} chunks found`);
-            
+
             if (results.length === 0) {
               console.log('📭 No relevant documents found');
               return JSON.stringify([]);
@@ -318,7 +319,7 @@ export function useRepository(repositoryId: string): RepositoryHook {
               console.log(`   File: ${result.file.name}`);
               console.log(`   Similarity: ${(result.similarity || 0).toFixed(3)}`);
               console.log(`   Text preview: ${result.text.substring(0, 100)}...`);
-              
+
               return {
                 file_name: result.file.name,
                 file_chunk: result.text,
@@ -337,11 +338,47 @@ export function useRepository(repositoryId: string): RepositoryHook {
     ];
   }, [queryChunks, files.length]);
 
+  const queryInstructions = useCallback((): string => {
+    const instructions = [];
+
+    if (repository?.instructions?.trim()) {
+      instructions.push(`
+## Instructions
+
+\`\`\`\`text
+${repository.instructions.trim()}
+\`\`\`\`
+`.trim());
+    }
+
+    if (files.length > 0) {
+      instructions.push(`
+## Personal RAG Knowledge Database
+
+You have access to a personal knowledge database containing the user's uploaded documents. This is a Retrieval-Augmented Generation (RAG) system that allows you to search and retrieve specific information from their files.
+
+### Best Practices:
+1. For *every* user query, you MUST first invoke the \`query_knowledge_database\` tool with a concise, natural-language query.
+2. Examine the tool's results.
+   - If you get ≥1 relevant documents or facts, answer the user *solely* using those results.
+   - Include source citations (e.g. doc IDs, relevance scores, or text snippets).
+3. Only if the tool returns no relevant information, you may answer from general knowledge—but still note "no document match; using fallback knowledge".
+4. If the tool call fails, report the failure and either retry or ask the user to clarify.
+5. Be concise, accurate, and transparent about sources.
+
+Use GitHub Flavored Markdown to format your responses including tables, code blocks, links, and lists.
+`.trim());
+    }
+
+    return instructions.join('\n\n');
+  }, [repository?.instructions, files.length]);
+
   return {
     files,
     removeFile,
     addFile,
     queryChunks,
     queryTools,
+    queryInstructions,
   };
 }

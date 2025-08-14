@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { Plus as PlusIcon, Mic, MicOff, Package, PackageOpen, AlertTriangle, Info } from "lucide-react";
+import { Plus as PlusIcon, Mic, MicOff, Package, PackageOpen, AlertTriangle, Info, BookText, BookOpenText } from "lucide-react";
 import { Button, Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { getConfig } from "../config";
 import { useAutoScroll } from "../hooks/useAutoScroll";
@@ -15,19 +15,27 @@ import { ChatSidebar } from "../components/ChatSidebar";
 import { VoiceWaves } from "../components/VoiceWaves";
 import { BackgroundImage } from "../components/BackgroundImage";
 import { useRepositories } from "../hooks/useRepositories";
+import { useArtifacts } from "../hooks/useArtifacts";
 import { RepositoryDrawer } from "../components/RepositoryDrawer";
+import { ArtifactsDrawer } from "../components/ArtifactsDrawer";
+import { FileSystemManager } from "../lib/fs";
+import { FileSystem } from "../types/file";
+import { Chat } from "../types/chat";
 
 export function ChatPage() {
   const {
     chat,
     messages,
     createChat,
-    chats
+    chats,
+    updateChat,
+    isResponding
   } = useChat();
   
   const { layoutMode } = useLayout();
   const { isAvailable: voiceAvailable, startVoice, stopVoice } = useVoice();
-  const { isAvailable: repositoryAvailable, toggleRepositoryDrawer, showRepositoryDrawer, setShowRepositoryDrawer, setCurrentRepository } = useRepositories();
+  const { isAvailable: artifactsAvailable, showArtifactsDrawer, toggleArtifactsDrawer, setFileSystemManager } = useArtifacts();
+  const { isAvailable: repositoryAvailable, toggleRepositoryDrawer, showRepositoryDrawer } = useRepositories();
   
   // Only need backgroundImage to check if background should be shown
   const { backgroundImage } = useBackground();
@@ -40,7 +48,9 @@ export function ChatPage() {
   
   // Repository drawer state
   const [isRepositoryDrawerAnimating, setIsRepositoryDrawerAnimating] = useState(false);
-  const [shouldRenderDrawer, setShouldRenderDrawer] = useState(false);
+  const [isArtifactsDrawerAnimating, setIsArtifactsDrawerAnimating] = useState(false);
+  const [shouldRenderRepositoryDrawer, setShouldRenderRepositoryDrawer] = useState(false);
+  const [shouldRenderArtifactsDrawer, setShouldRenderArtifactsDrawer] = useState(false);
   
   // Toggle voice mode handler
   const toggleVoiceMode = useCallback(async () => {
@@ -57,12 +67,9 @@ export function ChatPage() {
   const startVoiceMode = useCallback(async () => {
     setShowVoicePreviewDialog(false);
     
-    setShowRepositoryDrawer(false);
-    setCurrentRepository(null);
-    
     await startVoice();
     setIsVoiceMode(true);
-  }, [startVoice, setShowRepositoryDrawer, setCurrentRepository]);
+  }, [startVoice]);
   
   // Sidebar integration (now only controls visibility)
   const { setSidebarContent } = useSidebar();
@@ -71,6 +78,73 @@ export function ChatPage() {
   const { containerRef, bottomRef, handleScroll, enableAutoScroll } = useAutoScroll({
     dependencies: [chat, messages],
   });
+
+  // Ref to track chat input height for dynamic padding
+  const [chatInputHeight, setChatInputHeight] = useState(112); // Default to pb-28 (7rem = 112px)
+
+  // Ref to get current chat without causing effect dependencies
+  const getCurrentChatRef = useRef<() => Chat | null>(() => null);
+  
+  // Update the ref whenever chat or chats change
+  useEffect(() => {
+    getCurrentChatRef.current = () => {
+      if (!chat?.id) return null;
+      return chats.find(c => c.id === chat.id) || null;
+    };
+  }, [chat?.id, chats]);
+
+  // Set up artifacts filesystem integration with chat.files
+  useEffect(() => {
+    if (!chat?.id || !artifactsAvailable) {
+      setFileSystemManager(null);
+      return;
+    }
+
+    const chatId = chat.id;
+
+    // Create FileSystemManager that uses chat.files as persistence
+    const manager = new FileSystemManager(
+      // getFilesystem: returns current filesystem state from chat.files
+      () => {
+        const currentChat = getCurrentChatRef.current();
+        return currentChat?.artifacts || {};
+      },
+      
+      // setFilesystem: updates chat.files through functional updateChat
+      (updater: (current: FileSystem) => FileSystem) => {
+        updateChat(chatId, (currentChat: Chat) => ({
+          artifacts: updater(currentChat.artifacts || {})
+        }));
+      }
+    );
+
+    // Subscribe to file events
+    const unsubscribeCreated = manager.subscribe('fileCreated', (path: string) => {
+      console.log(`📄 Artifacts: File created: ${path}`);
+    });
+
+    const unsubscribeDeleted = manager.subscribe('fileDeleted', (path: string) => {
+      console.log(`🗑️ Artifacts: File deleted: ${path}`);
+    });
+
+    const unsubscribeRenamed = manager.subscribe('fileRenamed', (oldPath: string, newPath: string) => {
+      console.log(`📁 Artifacts: File renamed: ${oldPath} → ${newPath}`);
+    });
+
+    const unsubscribeUpdated = manager.subscribe('fileUpdated', (path: string) => {
+      console.log(`✏️ Artifacts: File updated: ${path}`);
+    });
+
+    setFileSystemManager(manager);
+
+    // Cleanup subscriptions when effect runs again or unmounts
+    return () => {
+      unsubscribeCreated();
+      unsubscribeDeleted();
+      unsubscribeRenamed();
+      unsubscribeUpdated();
+    };
+  }, [chat?.id, artifactsAvailable, updateChat, setFileSystemManager]);
 
   // Set up navigation actions (only once on mount)
   useEffect(() => {
@@ -83,6 +157,15 @@ export function ChatPage() {
             title={showRepositoryDrawer ? 'Close repositories' : 'Open repositories'}
           >
             {showRepositoryDrawer ? <PackageOpen size={20} /> : <Package size={20} />}
+          </Button>
+        )}
+        {artifactsAvailable && (
+          <Button
+            className="p-2 rounded transition-all duration-150 ease-out text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200"
+            onClick={toggleArtifactsDrawer}
+            title={showArtifactsDrawer ? 'Close artifacts' : 'Open artifacts'}
+          >
+            {showArtifactsDrawer ? <BookOpenText size={20} /> : <BookText size={20} />}
           </Button>
         )}
         {voiceAvailable && (
@@ -111,12 +194,12 @@ export function ChatPage() {
     return () => {
       setRightActions(null);
     };
-  }, [setRightActions, createChat, isVoiceMode, toggleVoiceMode, voiceAvailable, repositoryAvailable, showRepositoryDrawer, toggleRepositoryDrawer]);
+  }, [setRightActions, createChat, isVoiceMode, toggleVoiceMode, voiceAvailable, repositoryAvailable, showRepositoryDrawer, toggleRepositoryDrawer, artifactsAvailable, showArtifactsDrawer, toggleArtifactsDrawer]);
 
   // Handle repository drawer animation
   useEffect(() => {
     if (showRepositoryDrawer) {
-      setShouldRenderDrawer(true);
+      setShouldRenderRepositoryDrawer(true);
       // Small delay to ensure the element is in the DOM before animating
       setTimeout(() => {
         setIsRepositoryDrawerAnimating(true);
@@ -125,11 +208,29 @@ export function ChatPage() {
       setIsRepositoryDrawerAnimating(false);
       // Remove from DOM after animation completes
       const timer = setTimeout(() => {
-        setShouldRenderDrawer(false);
+        setShouldRenderRepositoryDrawer(false);
       }, 300); // Match the transition duration
       return () => clearTimeout(timer);
     }
   }, [showRepositoryDrawer]);
+
+  // Handle artifacts drawer animation
+  useEffect(() => {
+    if (showArtifactsDrawer) {
+      setShouldRenderArtifactsDrawer(true);
+      // Small delay to ensure the element is in the DOM before animating
+      setTimeout(() => {
+        setIsArtifactsDrawerAnimating(true);
+      }, 10);
+    } else {
+      setIsArtifactsDrawerAnimating(false);
+      // Remove from DOM after animation completes
+      const timer = setTimeout(() => {
+        setShouldRenderArtifactsDrawer(false);
+      }, 300); // Match the transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [showArtifactsDrawer]);
 
   // Create sidebar content with useMemo to avoid infinite re-renders
   const sidebarContent = useMemo(() => {
@@ -157,13 +258,67 @@ export function ChatPage() {
     prevMessagesLengthRef.current = messages.length;
   }, [messages.length, enableAutoScroll]);
 
+  // Observer for chat input height changes to adjust message container padding
+  useEffect(() => {
+    const observeHeight = () => {
+      // Find the chat input container by looking for the form element in the footer
+      const footerElement = document.querySelector('footer form');
+      if (footerElement) {
+        // Get the actual height of the chat input container
+        const height = footerElement.getBoundingClientRect().height;
+        // Add some extra padding (16px) for breathing room
+        setChatInputHeight(height + 16);
+      }
+    };
+
+    // Initial measurement after a short delay to ensure DOM is ready
+    const timer = setTimeout(observeHeight, 100);
+
+    // Create a MutationObserver to watch for changes in the footer area
+    const mutationObserver = new MutationObserver(() => {
+      observeHeight();
+    });
+
+    // Use ResizeObserver to watch for height changes
+    const resizeObserver = new ResizeObserver(observeHeight);
+
+    // Start observing once the footer element exists
+    const startObserving = () => {
+      const footerElement = document.querySelector('footer form');
+      if (footerElement) {
+        resizeObserver.observe(footerElement);
+        mutationObserver.observe(footerElement, { 
+          childList: true, 
+          subtree: true, 
+          characterData: true 
+        });
+      } else {
+        // If footer doesn't exist yet, try again after a short delay
+        setTimeout(startObserving, 50);
+      }
+    };
+
+    startObserving();
+
+    // Also listen for window resize as a fallback
+    window.addEventListener('resize', observeHeight);
+
+    return () => {
+      clearTimeout(timer);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener('resize', observeHeight);
+    };
+  }, []);
+
   return (
     <div className="h-full w-full flex overflow-hidden relative">
       <BackgroundImage opacity={messages.length === 0 ? 80 : 0} />
       
       {/* Main content area */}
       <div className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-300 ${
-        showRepositoryDrawer ? 'md:mr-83 md:pr-3' : ''
+        showArtifactsDrawer ? 'md:mr-[calc(70vw+0.75rem)]' : 
+        showRepositoryDrawer ? 'md:mr-[calc(20rem+0.75rem)]' : ''
       }`}>
         <main className="flex-1 flex flex-col overflow-hidden relative">
           {messages.length === 0 ? (
@@ -173,7 +328,7 @@ export function ChatPage() {
                 {!backgroundImage && (
                   <div className="mb-8">
                     <img 
-                      src="/logo.svg" 
+                      src="/logo_light.svg" 
                       alt="Wingman Chat" 
                       className="h-24 w-24 opacity-70 dark:hidden"
                     />
@@ -194,11 +349,11 @@ export function ChatPage() {
               ref={containerRef}
               onScroll={handleScroll}
             >
-              <div className={`px-3 pt-20 pb-28 ${
+              <div className={`px-3 pt-18 transition-all duration-150 ease-out ${
                 layoutMode === 'wide'
                   ? 'max-w-full md:max-w-[80vw] mx-auto' 
                   : 'max-content-width'
-              }`}>
+              }`} style={{ paddingBottom: `${chatInputHeight}px` }}>
                 {(() => {
                   try {
                     const config = getConfig();
@@ -222,7 +377,7 @@ export function ChatPage() {
                 })()}
                 
                 {messages.map((message, idx) => (
-                  <ChatMessage key={idx} message={message} isLast={idx === messages.length - 1} />
+                  <ChatMessage key={idx} message={message} isLast={idx === messages.length - 1} isResponding={isResponding} />
                 ))}
                 
                 {/* sentinel for scrollIntoView */}
@@ -237,7 +392,8 @@ export function ChatPage() {
           <footer className={`fixed bottom-0 left-0 md:px-3 md:pb-4 pointer-events-none z-20 transition-all duration-300 ease-out ${
             messages.length === 0 ? 'md:bottom-1/3 md:transform md:translate-y-1/2' : ''
           } ${
-            showRepositoryDrawer ? 'right-0 md:right-83' : 'right-0'
+            showArtifactsDrawer ? 'right-0 md:right-[calc(70vw+0.75rem)]' :
+            showRepositoryDrawer ? 'right-0 md:right-[calc(20rem+0.75rem)]' : 'right-0'
           }`}>
             <div className="relative pointer-events-auto md:max-w-4xl mx-auto">
               <ChatInput />
@@ -247,8 +403,9 @@ export function ChatPage() {
 
         {/* Full-width waves during voice mode */}
         {isVoiceMode && (
-          <div className={`fixed bottom-0 left-0 h-32 z-20 pointer-events-none bg-gradient-to-t from-white via-white/80 to-transparent dark:from-neutral-900 dark:via-neutral-900/80 dark:to-transparent transition-all duration-300 ease-out ${
-            showRepositoryDrawer ? 'right-0 md:right-83' : 'right-0'
+          <div className={`fixed bottom-0 left-0 h-32 z-20 pointer-events-none transition-all duration-300 ease-out ${
+            showArtifactsDrawer ? 'right-0 md:right-[calc(70vw+0.75rem)]' :
+            showRepositoryDrawer ? 'right-0 md:right-[calc(20rem+0.75rem)]' : 'right-0'
           }`}>
             <VoiceWaves />
           </div>
@@ -256,7 +413,7 @@ export function ChatPage() {
       </div>
 
       {/* Backdrop overlay for repository drawer on mobile */}
-      {shouldRenderDrawer && (
+      {shouldRenderRepositoryDrawer && (
         <div
           className={`fixed inset-0 bg-black/20 z-30 transition-opacity duration-300 md:hidden ${
             isRepositoryDrawerAnimating ? 'opacity-100' : 'opacity-0'
@@ -265,9 +422,19 @@ export function ChatPage() {
         />
       )}
 
+      {/* Backdrop overlay for artifacts drawer on mobile */}
+      {artifactsAvailable && shouldRenderArtifactsDrawer && (
+        <div
+          className={`fixed inset-0 bg-black/20 z-30 transition-opacity duration-300 md:hidden ${
+            isArtifactsDrawerAnimating ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={() => toggleArtifactsDrawer()}
+        />
+      )}
+
       {/* Repository drawer - right side */}
-      {shouldRenderDrawer && (
-        <div className={`w-80 bg-neutral-50/60 dark:bg-neutral-950/70 backdrop-blur-sm shadow-2xl border-l border-neutral-200 dark:border-neutral-900 top-16 bottom-4 z-40 rounded-xl transition-all duration-300 ease-out transform ${
+      {repositoryAvailable && shouldRenderRepositoryDrawer && !showArtifactsDrawer && (
+        <div className={`w-80 bg-neutral-50/60 dark:bg-neutral-950/70 backdrop-blur-sm shadow-2xl border-l border-neutral-200 dark:border-neutral-900 top-18 bottom-4 z-40 rounded-xl transition-all duration-300 ease-out transform ${
           isRepositoryDrawerAnimating 
             ? 'translate-x-0 opacity-100 scale-100' 
             : 'translate-x-full opacity-0 scale-95'
@@ -276,6 +443,20 @@ export function ChatPage() {
           'fixed right-0 md:right-3 md:w-80 w-full max-w-sm'
         }`}>
           <RepositoryDrawer />
+        </div>
+      )}
+
+      {/* Artifacts drawer - right side - takes priority over repository drawer */}
+      {artifactsAvailable && shouldRenderArtifactsDrawer && (
+        <div className={`w-full bg-neutral-50/60 dark:bg-neutral-950/70 backdrop-blur-sm shadow-2xl border-l border-neutral-200 dark:border-neutral-900 top-18 bottom-4 z-40 rounded-xl transition-all duration-300 ease-out transform ${
+          isArtifactsDrawerAnimating 
+            ? 'translate-x-0 opacity-100 scale-100' 
+            : 'translate-x-full opacity-0 scale-95'
+        } ${ 
+          // On mobile: full width overlay from right edge, on desktop: positioned with right-3 and 70% width
+          'fixed right-0 md:right-3 md:w-[70vw] max-w-none'
+        }`}>
+          <ArtifactsDrawer />
         </div>
       )}
 
@@ -295,24 +476,16 @@ export function ChatPage() {
             
             <div className="mb-6">
               <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-                The following features are currently not supported:
+                Current limitations:
               </p>
               <ul className="text-sm text-neutral-700 dark:text-neutral-300 space-y-2">
                 <li className="flex items-start gap-2">
                   <span className="text-neutral-400 dark:text-neutral-500 mt-1">•</span>
-                  <span>Prompt personalization</span>
+                  <span>Limited to GPT-4o (Oct 01, 2023)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-neutral-400 dark:text-neutral-500 mt-1">•</span>
-                  <span>Document repositories</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-neutral-400 dark:text-neutral-500 mt-1">•</span>
-                  <span>Specialized models & tools</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-neutral-400 dark:text-neutral-500 mt-1">•</span>
-                  <span>Bridge (Local Connector)</span>
+                  <span>No custom model support</span>
                 </li>
               </ul>
             </div>

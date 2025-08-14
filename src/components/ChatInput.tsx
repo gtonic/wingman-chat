@@ -1,16 +1,14 @@
 import { ChangeEvent, useState, FormEvent, useRef, useEffect, useMemo } from "react";
 import { Button, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 
-import { Send, Paperclip, ScreenShare, Image, X, Brain, File, Loader2, FileText, Lightbulb, Mic, Square, Package, Check } from "lucide-react";
+import { Send, Paperclip, ScreenShare, Image, X, Brain, File, Loader2, FileText, Lightbulb, Mic, Square, Package, Check, Globe, LoaderCircle } from "lucide-react";
 
 import { Attachment, AttachmentType, Message, Role } from "../types/chat";
 import {
-  captureScreenshot,
   getFileExt,
   readAsDataURL,
   readAsText,
   resizeImageBlob,
-  supportsScreenshot,
   supportedTypes,
   textTypes,
   imageTypes,
@@ -22,14 +20,18 @@ import { useRepositories } from "../hooks/useRepositories";
 import { useTranscription } from "../hooks/useTranscription";
 import { useDropZone } from "../hooks/useDropZone";
 import { useSettings } from "../hooks/useSettings";
+import { useScreenCapture } from "../hooks/useScreenCapture";
+import { useSearch } from "../hooks/useSearch";
 
 export function ChatInput() {
   const config = getConfig();
   const client = config.client;
 
-  const { sendMessage, models, model, setModel: onModelChange, messages } = useChat();
+  const { sendMessage, models, model, setModel: onModelChange, messages, isResponding } = useChat();
   const { currentRepository, setCurrentRepository } = useRepositories();
   const { profile } = useSettings();
+  const { isAvailable: isScreenCaptureAvailable, isActive: isContinuousCaptureActive, startCapture, stopCapture, captureFrame } = useScreenCapture();
+  const { isAvailable: isSearchAvailable, isEnabled: isSearchEnabled, setEnabled: setSearchEnabled } = useSearch();
 
   const [content, setContent] = useState("");
   const [transcribingContent, setTranscribingContent] = useState(false);
@@ -80,6 +82,8 @@ export function ChatInput() {
 
   // Transcription hook
   const { canTranscribe, isTranscribing, startTranscription, stopTranscription } = useTranscription();
+
+
 
   const handleFiles = async (files: File[]) => {
     // Process all files in parallel for better performance
@@ -144,8 +148,12 @@ export function ChatInput() {
       let suggestions: string[];
       
       if (messages.length === 0) {
-        // For new chats, get common/popular prompts
-        suggestions = await client.relatedPrompts(model.id, "");
+        // For new chats, use model prompts if available, otherwise get related prompts
+        if (model.prompts && model.prompts.length > 0) {
+          suggestions = model.prompts;
+        } else {
+          suggestions = await client.relatedPrompts(model.id, "");
+        }
       } else {
         // Get the last few messages for context
         const contextMessages = messages.slice(-6);
@@ -248,14 +256,40 @@ export function ChatInput() {
     }
   }, [messages.length]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    // Prevent submission while responding
+    if (isResponding) {
+      return;
+    }
+
     if (content.trim()) {
+      let finalAttachments = [...attachments];
+
+      // If continuous capture is active, automatically capture current screen
+      if (isContinuousCaptureActive) {
+        try {
+          const blob = await captureFrame();
+          if (blob) {
+            const data = await readAsDataURL(blob);
+            const screenAttachment = {
+              type: AttachmentType.Image,
+              name: `screen-capture-${Date.now()}.png`,
+              data: data,
+            };
+            // Add screen capture as the first attachment
+            finalAttachments = [screenAttachment, ...finalAttachments];
+          }
+        } catch (error) {
+          console.error("Error capturing screen during message send:", error);
+        }
+      }
+
       const message: Message = {
         role: Role.User,
         content: content,
-        attachments: attachments,
+        attachments: finalAttachments,
       };
 
       sendMessage(message);
@@ -274,28 +308,15 @@ export function ChatInput() {
     }
   };
 
-  const handleScreenshotClick = async () => {
-    const screenshotId = `screenshot-${Date.now()}`;
-    setExtractingAttachments(prev => new Set([...prev, screenshotId]));
-    
+  const handleContinuousCaptureToggle = async () => {
     try {
-      const data = await captureScreenshot();
-
-      const attachment = {
-        type: AttachmentType.Image,
-        name: "screenshot.png",
-        data: data,
-      };
-
-      setAttachments((prev) => [...prev, attachment]);
+      if (isContinuousCaptureActive) {
+        stopCapture();
+      } else {
+        await startCapture();
+      }
     } catch (error) {
-      console.error("Error capturing screenshot:", error);
-    } finally {
-      setExtractingAttachments(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(screenshotId);
-        return newSet;
-      });
+      console.error("Error toggling continuous capture:", error);
     }
   };
 
@@ -579,16 +600,47 @@ export function ChatInput() {
                 </Button>
               </div>
             )}
+
           </div>
 
           <div className="flex items-center gap-1">
-            {config.vision && supportsScreenshot() && (
+            {isSearchAvailable && (
               <Button
                 type="button"
-                className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
-                onClick={handleScreenshotClick}
+                className={`p-1.5 flex items-center gap-1.5 text-xs font-medium transition-all duration-300 ${
+                  isSearchEnabled 
+                    ? 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 bg-blue-100/80 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800 rounded-lg' 
+                    : 'text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200'
+                }`}
+                onClick={() => setSearchEnabled(!isSearchEnabled)}
+                title={isSearchEnabled ? 'Disable internet access' : 'Enable internet access'}
               >
-                <ScreenShare size={16} />
+                <Globe size={14} />
+                {isSearchEnabled && (
+                  <span className="hidden sm:inline">
+                    Internet
+                  </span>
+                )}
+              </Button>
+            )}
+
+            {isScreenCaptureAvailable && (
+              <Button
+                type="button"
+                className={`p-1.5 flex items-center gap-1.5 text-xs font-medium transition-all duration-300 ${
+                  isContinuousCaptureActive 
+                    ? 'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 bg-red-100/80 dark:bg-red-900/40 border border-red-200 dark:border-red-800 rounded-lg' 
+                    : 'text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200'
+                }`}
+                onClick={handleContinuousCaptureToggle}
+                title={isContinuousCaptureActive ? 'Stop continuous screen capture' : 'Start continuous screen capture'}
+              >
+                <ScreenShare size={14} />
+                {isContinuousCaptureActive && (
+                  <span className="hidden sm:inline">
+                    Capturing
+                  </span>
+                )}
               </Button>
             )}
 
@@ -600,8 +652,17 @@ export function ChatInput() {
               <Paperclip size={16} />
             </Button>
 
-            {/* Dynamic Send/Mic Button */}
-            {content.trim() ? (
+            {/* Dynamic Send/Mic/Loading Button */}
+            {isResponding ? (
+              <Button
+                type="button"
+                className="p-1.5 text-neutral-600 dark:text-neutral-400"
+                disabled
+                title="Generating response..."
+              >
+                <LoaderCircle size={16} className="animate-spin" />
+              </Button>
+            ) : content.trim() ? (
               <Button
                 className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
                 type="submit"
@@ -628,6 +689,7 @@ export function ChatInput() {
                   }`}
                   onClick={handleTranscriptionClick}
                   title={isTranscribing ? 'Stop recording' : 'Start recording'}
+                  disabled={isResponding}
                 >
                   {isTranscribing ? <Square size={16} /> : <Mic size={16} />}
                 </Button>
@@ -636,6 +698,7 @@ export function ChatInput() {
               <Button
                 className="p-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
                 type="submit"
+                disabled={isResponding}
               >
                 <Send size={16} />
               </Button>

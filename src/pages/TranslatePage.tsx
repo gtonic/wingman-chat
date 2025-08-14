@@ -6,12 +6,17 @@ import { useNavigation } from "../hooks/useNavigation";
 import { useLayout } from "../hooks/useLayout";
 import { useTranslate } from "../hooks/useTranslate";
 import { CopyButton } from "../components/CopyButton";
+import { PlayButton } from "../components/PlayButton";
+import { getConfig } from "../config";
 
 export function TranslatePage() {
   const { setRightActions } = useNavigation();
   const { layoutMode } = useLayout();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  const config = getConfig();
+  const enableTTS = config.tts;
   
   // Use translate context
   const {
@@ -328,8 +333,9 @@ export function TranslatePage() {
                   
                   {/* Show copy button for text translations and file translations that return text */}
                   {translatedText && (
-                    <div className="absolute top-2 right-2">
-                      <CopyButton text={translatedText} />
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      {enableTTS && <PlayButton text={translatedText} className="h-4 w-4" />}
+                      <CopyButton text={translatedText} className="h-4 w-4" />
                     </div>
                   )}
                 </div>

@@ -1,2 +1,27 @@
 {
+    "artifacts": {
+        "enabled": true
+    },
+    "voice": {
+        "enabled": true
+    },
+    "stt": {
+        "enabled": true
+    },
+    "tts": {
+        "enabled": true
+    },
+    "repository": {
+        "enabled": true
+    },
+    "internet": {
+        "enabled": true,
+        "index": "exa"
+    },
+    "vision": {
+        "enabled": true
+    },
+    "bridge": {
+        "url": "http://localhost:4200"
+    }
 }

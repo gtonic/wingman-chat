@@ -6,10 +6,10 @@ import { Client } from '../lib/client';
 type PlayButtonProps = {
   text: string;
   voice?: string;
-  size?: number;
+  className?: string;
 };
 
-export function PlayButton({ text, ...props }: PlayButtonProps) {
+export function PlayButton({ text, voice, className }: PlayButtonProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -23,7 +23,7 @@ export function PlayButton({ text, ...props }: PlayButtonProps) {
 
     try {
       const client = new Client();
-      await client.speakText("", text);
+      await client.speakText(voice || "", text);
     } catch (error) {
       console.error('Failed to play text:', error);
     } finally {
@@ -33,7 +33,6 @@ export function PlayButton({ text, ...props }: PlayButtonProps) {
   };
 
   const buttonClasses = "text-neutral-400 hover:text-neutral-600 dark:text-neutral-400 dark:hover:text-neutral-300 transition-colors opacity-60 hover:opacity-100 disabled:opacity-30 p-1";
-  const iconSize = `h-${props.size ?? 3} w-${props.size ?? 3}`;
 
   return (
     <Button
@@ -43,11 +42,11 @@ export function PlayButton({ text, ...props }: PlayButtonProps) {
       title={isLoading ? "Generating audio..." : isPlaying ? "Playing audio..." : "Play message"}
     >
       {isLoading ? (
-        <Loader2 className={`${iconSize} animate-spin`} />
+        <Loader2 className={`${className || "h-3 w-3"} animate-spin`} />
       ) : isPlaying ? (
-        <Square className={iconSize} />
+        <Square className={className || "h-3 w-3"} />
       ) : (
-        <Play className={iconSize} />
+        <Play className={className || "h-3 w-3"} />
       )}
     </Button>
   );

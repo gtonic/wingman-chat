@@ -1,8 +1,12 @@
+import { File } from "./file";
+
 export type Model = {
     id: string;
     name: string;
     
     description?: string;
+    
+    prompts?: string[];
 }
 
 export type Message = {
@@ -50,4 +54,5 @@ export type Chat = {
 
     model: Model | null;
     messages: Array<Message>;
+    artifacts?: { [path: string]: File };
 };

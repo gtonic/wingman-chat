@@ -33,6 +33,10 @@ func main() {
 	voice := os.Getenv("VOICE_ENABLED") == "true"
 	vision := os.Getenv("VISION_ENABLED") == "true"
 
+	internet := os.Getenv("INTERNET_ENABLED") == "true"
+
+	artifacts := os.Getenv("ARTIFACTS_ENABLED") == "true"
+
 	repository := os.Getenv("REPOSITORY_ENABLED") == "true"
 	repositoryEmbedder := os.Getenv("REPOSITORY_EMBEDDER")
 	repositoryExtractor := os.Getenv("REPOSITORY_EXTRACTOR")
@@ -48,6 +52,8 @@ func main() {
 
 			Name        string `json:"name,omitempty" yaml:"name,omitempty"`
 			Description string `json:"description,omitempty" yaml:"description,omitempty"`
+
+			Prompts []string `json:"prompts,omitempty" yaml:"prompts,omitempty"`
 		}
 
 		type ttsType struct {
@@ -68,6 +74,14 @@ func main() {
 
 		type bridgeType struct {
 			URL string `json:"url,omitempty" yaml:"url,omitempty"`
+		}
+
+		type artifactsType struct {
+			Enabled bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+		}
+
+		type internetType struct {
+			Enabled bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 		}
 
 		type repositoryType struct {
@@ -98,6 +112,8 @@ func main() {
 			Vision *visionType `json:"vision,omitempty" yaml:"vision,omitempty"`
 
 			Bridge     *bridgeType     `json:"bridge,omitempty" yaml:"bridge,omitempty"`
+			Internet   *internetType   `json:"internet,omitempty" yaml:"internet,omitempty"`
+			Artifacts  *artifactsType  `json:"artifacts,omitempty" yaml:"artifacts,omitempty"`
 			Repository *repositoryType `json:"repository,omitempty" yaml:"repository,omitempty"`
 			Translator *translatorType `json:"translator,omitempty" yaml:"translator,omitempty"`
 
@@ -152,6 +168,18 @@ func main() {
 			}
 		}
 
+		if artifacts {
+			config.Artifacts = &artifactsType{
+				Enabled: true,
+			}
+		}
+
+		if internet {
+			config.Internet = &internetType{
+				Enabled: true,
+			}
+		}
+
 		if repository {
 			config.Repository = &repositoryType{
 				Enabled:   true,
@@ -175,13 +203,13 @@ func main() {
 			"orientation":      "portrait",
 			"icons": []map[string]any{
 				{
-					"src":     "/icon.png",
+					"src":     "/icon_light.png",
 					"sizes":   "512x512",
 					"type":    "image/png",
 					"purpose": "any maskable",
 				},
 				{
-					"src":   "/logo.svg",
+					"src":   "/icon_light.svg",
 					"sizes": "any",
 					"type":  "image/svg+xml",
 				},

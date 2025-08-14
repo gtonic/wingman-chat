@@ -1,11 +1,9 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { Message, Model, Tool, Role } from "../types/chat";
+import { Message, Model, Role } from "../types/chat";
 import { useModels } from "../hooks/useModels";
 import { useChats } from "../hooks/useChats";
-import { useRepositories } from "../hooks/useRepositories";
-import { useRepository } from "../hooks/useRepository";
-import { useBridge } from "../hooks/useBridge";
-import { useProfile } from "../hooks/useProfile";
+import { useChatContext } from "../hooks/useChatContext";
+import { useSearch } from "../hooks/useSearch";
 import { getConfig } from "../config";
 import { ChatContext, ChatContextType } from './ChatContext';
 
@@ -19,11 +17,10 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   const { models, selectedModel, setSelectedModel } = useModels();
   const { chats, createChat: createChatHook, updateChat, deleteChat: deleteChatHook } = useChats();
-  const { currentRepository } = useRepositories();
-  const { queryTools } = useRepository(currentRepository?.id || '');
-  const { bridgeTools, bridgeInstructions } = useBridge();
-  const { generateInstructions } = useProfile();
+  const { tools: chatTools, instructions: chatInstructions } = useChatContext();
+  const { setEnabled: setSearchEnabled } = useSearch();
   const [chatId, setChatId] = useState<string | null>(null);
+  const [isResponding, setIsResponding] = useState<boolean>(false);
   const messagesRef = useRef<Message[]>([]);
 
   const chat = chats.find(c => c.id === chatId) ?? null;
@@ -41,12 +38,16 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const createChat = useCallback(() => {
     const newChat = createChatHook();
     setChatId(newChat.id);
+    // Disable search when creating a new chat to prevent accidental usage
+    setSearchEnabled(false);
     return newChat;
-  }, [createChatHook]);
+  }, [createChatHook, setSearchEnabled]);
 
   const selectChat = useCallback((chatId: string) => {
     setChatId(chatId);
-  }, []);
+    // Disable search when switching chats to prevent accidental usage
+    setSearchEnabled(false);
+  }, [setSearchEnabled]);
 
   const deleteChat = useCallback(
     (id: string) => {
@@ -60,7 +61,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   const setModel = useCallback((model: Model | null) => {
     if (chat) {
-      updateChat(chat.id, { model });
+      updateChat(chat.id, () => ({ model }));
     } else {
       setSelectedModel(model);
     }
@@ -79,7 +80,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       chatItem.model = model;
 
       setChatId(chatItem.id);
-      updateChat(chatItem.id, { model });
+      updateChat(chatItem.id, () => ({ model }));
 
       id = chatItem.id;
     }
@@ -95,79 +96,48 @@ export function ChatProvider({ children }: ChatProviderProps) {
       const updatedMessages = [...currentMessages, message];
       
       messagesRef.current = updatedMessages;
-      updateChat(id, { messages: updatedMessages });
+      updateChat(id, () => ({ messages: updatedMessages }));
     },
     [getOrCreateChat, updateChat]
   );
 
   const sendMessage = useCallback(
-    async (message: Message, tools?: Tool[]) => {
+    async (message: Message) => {
       const { id, chat: chatObj } = getOrCreateChat();
 
       const existingMessages = chats.find(c => c.id === id)?.messages || [];
       const conversation = [...existingMessages, message];
 
-      updateChat(id, { messages: [...conversation, { role: Role.Assistant, content: '' }] });
+      updateChat(id, () => ({ messages: [...conversation, { role: Role.Assistant, content: '' }] }));
+      setIsResponding(true);
 
       try {
-        const profileInstructions = generateInstructions();
-
-        const repositoryTools = currentRepository ? queryTools() : [];
-        const repositoryInstructions = currentRepository?.instructions || '';
-        
-        const completionTools = [...bridgeTools, ...repositoryTools, ...(tools || [])];
-
-        const instructions: string[] = [];
-
-        if (profileInstructions.trim()) {
-          instructions.push(profileInstructions);
-        }
-
-        if (bridgeInstructions?.trim()) {
-          instructions.push(bridgeInstructions);
-        }
-        
-        if (repositoryInstructions.trim()) {
-          instructions.push(repositoryInstructions);
-        }
-
-        if (repositoryTools.length > 0) {
-          instructions.push(`Your mission:
-          1. For *every* user query, you MUST first invoke the \`query_knowledge_database\` tool with a concise, natural-language query.
-          2. Examine the tool's results.
-             - If you get ≥1 relevant documents or facts, answer the user *solely* using those results.
-             - Include source citations (e.g. doc IDs, relevance scores, or text snippets).
-          3. Only if the tool returns no relevant information, you may answer from general knowledge—but still note "no document match; using fallback knowledge".
-          4. If the tool call fails, report the failure and either retry or ask the user to clarify.
-          5. Be concise, accurate, and transparent about sources.
-
-          Use GitHub Flavored Markdown to format your responses including tables, code blocks, links, and lists.`);
-        }
-
         const completion = await client.complete(
           model!.id,
-          instructions.join('\n\n'),
+          chatInstructions,
           conversation,
-          completionTools,
-          (_, snapshot) => updateChat(id, { messages: [...conversation, { role: Role.Assistant, content: snapshot }] })
+          chatTools,
+          (_, snapshot) => updateChat(id, () => ({ messages: [...conversation, { role: Role.Assistant, content: snapshot }] }))
         );
 
-        updateChat(id, { messages: [...conversation, completion] });
+        updateChat(id, () => ({ messages: [...conversation, completion] }));
+        setIsResponding(false);
 
         if (!chatObj.title || conversation.length % 3 === 0) {
           client
             .summarize(model!.id, conversation)
-            .then(title => updateChat(id, { title }));
+            .then(title => updateChat(id, () => ({ title })));
         }
       } catch (error) {
         console.error(error);
+        setIsResponding(false);
 
         if (error?.toString().includes('missing finish_reason')) return;
 
         const errorMessage = { role: Role.Assistant, content: `An error occurred:\n${error}` };
-        updateChat(id, { messages: [...conversation, errorMessage] });
+        updateChat(id, () => ({ messages: [...conversation, errorMessage] }));
       }
-    }, [getOrCreateChat, chats, updateChat, currentRepository, queryTools, bridgeTools, generateInstructions, client, model, bridgeInstructions]);
+    }, [getOrCreateChat, chats, updateChat, chatTools, chatInstructions, client, model, setIsResponding]);
 
   const value: ChatContextType = {
     // Models
@@ -179,6 +149,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     chats,
     chat,
     messages,
+    isResponding,
 
     // Chat actions
     createChat,

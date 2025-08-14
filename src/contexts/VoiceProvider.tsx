@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useVoiceWebSockets } from "../hooks/useVoiceWebSockets";
 import { useChat } from "../hooks/useChat";
+import { useChatContext } from "../hooks/useChatContext";
 import { getConfig } from "../config";
 import { Role } from "../types/chat";
 import { VoiceContext, VoiceContextType } from './VoiceContext';
@@ -13,7 +14,8 @@ export function VoiceProvider({ children }: VoiceProviderProps) {
   const [isListening, setIsListening] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
   const { addMessage, messages } = useChat();
-  
+  const { tools: chatTools, instructions: chatInstructions } = useChatContext();
+
   // Check voice availability from config
   useEffect(() => {
     try {
@@ -24,10 +26,10 @@ export function VoiceProvider({ children }: VoiceProviderProps) {
       setIsAvailable(false);
     }
   }, []);
-  
+
   const onUserTranscript = useCallback((text: string) => {
     let content = text;
-    
+
     // Handle case where text might be a JSON string or object
     try {
       // First, check if it's already a string that looks like JSON
@@ -43,14 +45,14 @@ export function VoiceProvider({ children }: VoiceProviderProps) {
       // If parsing fails, use the original text
       content = text;
     }
-    
+
     // Additional check: if content is still an object, try to extract text
     if (typeof content === 'object' && content !== null && 'text' in content) {
       content = (content as { text: string }).text;
     }
-    
+
     console.log('User transcript:', { original: text, processed: content });
-    
+
     if (content.trim()) {
       addMessage({ role: Role.User, content });
     }
@@ -58,7 +60,7 @@ export function VoiceProvider({ children }: VoiceProviderProps) {
 
   const onAssistantTranscript = useCallback((text: string) => {
     let content = text;
-    
+
     // Handle case where text might be a JSON string or object
     try {
       // First, check if it's already a string that looks like JSON
@@ -74,20 +76,20 @@ export function VoiceProvider({ children }: VoiceProviderProps) {
       // If parsing fails, use the original text
       content = text;
     }
-    
+
     // Additional check: if content is still an object, try to extract text
     if (typeof content === 'object' && content !== null && 'text' in content) {
       content = (content as { text: string }).text;
     }
-    
+
     console.log('Assistant transcript:', { original: text, processed: content });
-    
+
     if (content.trim()) {
       addMessage({ role: Role.Assistant, content });
     }
   }, [addMessage]);
 
-  const { start, stop } = useVoiceWebSockets(onUserTranscript, onAssistantTranscript, messages);
+  const { start, stop } = useVoiceWebSockets(onUserTranscript, onAssistantTranscript);
 
   const stopVoice = useCallback(async () => {
     await stop();
@@ -96,7 +98,7 @@ export function VoiceProvider({ children }: VoiceProviderProps) {
 
   const startVoice = useCallback(async () => {
     try {
-      await start();
+      await start(undefined, undefined, chatInstructions, messages, chatTools);
       setIsListening(true);
     } catch (error) {
       console.error('Failed to start voice mode:', error);
@@ -108,7 +110,7 @@ export function VoiceProvider({ children }: VoiceProviderProps) {
         alert('Failed to start voice mode. Please check your microphone permissions and try again.');
       }
     }
-  }, [start]);
+  }, [chatInstructions, chatTools, start, messages]);
 
   const value: VoiceContextType = {
     isAvailable,

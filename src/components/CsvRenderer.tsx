@@ -1,7 +1,6 @@
 import { memo, useState, useMemo } from 'react';
-import { Eye, Code } from 'lucide-react';
-import { Button } from '@headlessui/react';
 import { CopyButton } from './CopyButton';
+import { PreviewButton } from './PreviewButton';
 
 interface CsvRendererProps {
   csv: string;
@@ -100,14 +99,12 @@ const NonMemoizedCsvRenderer = ({ csv, language }: CsvRendererProps) => {
         <div className="flex justify-between items-center bg-gray-100 dark:bg-neutral-800 pl-4 pr-2 py-1.5 rounded-t-md text-xs text-gray-700 dark:text-neutral-300">
           <span>{language}</span>
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setShowCode(!showCode)}
-              className="text-neutral-300 hover:text-white transition-colors"
-              title={showCode ? 'Show preview' : 'Show code'}
-            >
-              {showCode ? <Eye className="h-4" /> : <Code className="h-4" />}
-            </Button>
-            <CopyButton text={csv} />
+            <PreviewButton 
+              showCode={showCode} 
+              onToggle={() => setShowCode(!showCode)} 
+              className="h-4 w-4" 
+            />
+            <CopyButton text={csv} className="h-4 w-4" />
           </div>
         </div>
         <div className="bg-white dark:bg-neutral-900 rounded-b-md border-l border-r border-b border-gray-100 dark:border-neutral-800">
@@ -137,14 +134,12 @@ const NonMemoizedCsvRenderer = ({ csv, language }: CsvRendererProps) => {
           {language}
         </span>
         <div className="flex items-center gap-2">
-          <Button
-            onClick={() => setShowCode(!showCode)}
-            className="text-neutral-300 hover:text-white transition-colors"
-            title={showCode ? 'Show table' : 'Show code'}
-          >
-            {showCode ? <Eye className="h-4" /> : <Code className="h-4" />}
-          </Button>
-          <CopyButton text={csv} />
+          <PreviewButton 
+            showCode={showCode} 
+            onToggle={() => setShowCode(!showCode)} 
+            className="h-4 w-4" 
+          />
+          <CopyButton text={csv} className="h-4 w-4" />
         </div>
       </div>
 

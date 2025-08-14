@@ -23,7 +23,9 @@ interface config {
   vision?: visionConfig;
   
   bridge?: bridgeConfig;
-  repository?: repositoryConfig;
+  internet?: internetConfig;
+  artifacts?: artifactsConfig;
+  repository?: repositoryConfig;  
   translator?: translatorConfig;
 }
 
@@ -32,6 +34,8 @@ interface modelConfig {
   name: string;
 
   description?: string;
+
+  prompts?: string[];
 }
 
 interface ttsConfig {
@@ -54,10 +58,18 @@ interface bridgeConfig {
   url: string;
 }
 
+interface internetConfig {
+  enabled: boolean;
+}
+
 interface repositoryConfig {
   enabled: boolean;
   embedder?: string;
   extractor?: string;
+}
+
+interface artifactsConfig {
+  enabled: boolean;
 }
 
 interface translatorConfig {
@@ -80,7 +92,10 @@ interface Config {
   vision: boolean;
   
   bridge: Bridge;
-  repository: repositoryConfig;
+
+  internet: internetConfig;
+  artifacts: artifactsConfig;
+  repository: repositoryConfig;  
   translator: translatorConfig; 
 
   backgrounds: backgroundPackConfig;
@@ -115,6 +130,8 @@ export const loadConfig = async (): Promise<Config | undefined> => {
 
           name: model.name,
           description: model.description,
+
+          prompts: model.prompts,
         };
       }) ?? [],
 
@@ -126,10 +143,18 @@ export const loadConfig = async (): Promise<Config | undefined> => {
       
       bridge: bridge,
 
+      internet: cfg.internet ?? {
+        enabled: false,
+      },
+
       repository: cfg.repository ?? {
         enabled: false
       },
 
+      artifacts: cfg.artifacts ?? {
+        enabled: false
+      },
+      
       translator: cfg.translator ?? {
         enabled: true,
 
