@@ -15,11 +15,11 @@ import { FileIcon } from './FileIcon';
 import { getFileName } from '../lib/utils';
 
 export function ArtifactsDrawer() {
-  const { 
+  const {
     fs,
-    openFiles, 
-    activeFile, 
-    openFile, 
+    openFiles,
+    activeFile,
+    openFile,
     closeFile,
   } = useArtifacts();
 
@@ -31,21 +31,14 @@ export function ArtifactsDrawer() {
   useEffect(() => {
     if (!fs) return;
 
-    const unsubscribeUpdated = fs.subscribe('fileUpdated', (updatedPath: string) => {
-      // If the updated file is currently open, close and reopen it to refresh content
-      if (activeFile === updatedPath) {
-        closeFile(updatedPath);
-        // Reopen after a brief delay to ensure clean state
-        setTimeout(() => {
-          openFile(updatedPath);
-        }, 10);
-      }
+    const unsubscribeUpdated = fs.subscribe('fileUpdated', (_updatedPath: string) => {
+      // No-op: components consume updated content from filesystem state without forcing tab re-mount.
     });
 
     return () => {
       unsubscribeUpdated();
     };
-  }, [fs, activeFile, closeFile, openFile]);
+  }, [fs]);
 
   // Get all files sorted by path
   const files = fs ? fs.listFiles().sort((a, b) => a.path.localeCompare(b.path)) : [];
@@ -72,7 +65,7 @@ export function ArtifactsDrawer() {
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+
     // Clear any pending timeout
     if (dragTimeoutRef.current) {
       clearTimeout(dragTimeoutRef.current);
@@ -80,18 +73,18 @@ export function ArtifactsDrawer() {
     }
 
     const files = Array.from(e.dataTransfer.files);
-    
+
     for (const file of files) {
       try {
         const path = `/${file.name}`;
-        
+
         // Read the file content as text
         const content = await file.text();
-        
+
         // Create the file with string content
         if (fs) {
           fs.createFile(path, content, file.type);
-          
+
           // Open the file in a tab
           openFile(path);
         }
@@ -103,16 +96,16 @@ export function ArtifactsDrawer() {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    
+
     if (!isDragOver) {
       setIsDragOver(true);
     }
-    
+
     // Clear any existing timeout and set a new one
     if (dragTimeoutRef.current) {
       clearTimeout(dragTimeoutRef.current);
     }
-    
+
     // Reset drag state after a short delay if no more drag events
     dragTimeoutRef.current = setTimeout(() => {
       setIsDragOver(false);
@@ -139,8 +132,8 @@ export function ArtifactsDrawer() {
             No File Selected
           </h3>
           <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-            {files.length === 0 
-              ? "Files created by the AI will appear here" 
+            {files.length === 0
+              ? "Files created by the AI will appear here"
               : "Select a file from the tabs above or use the file browser"}
           </p>
           {files.length > 0 && (
@@ -168,14 +161,14 @@ export function ArtifactsDrawer() {
       case 'csv':
         return <CsvEditor content={file.content} />;
       case 'mermaid':
-        return <MermaidEditor content={file.content} />;
+        return <MermaidEditor path={file.path} content={file.content} />;
       case 'markdown':
         return <MarkdownEditor content={file.content} />;
       case 'code':
         return (
-          <CodeEditor 
-            content={file.content} 
-            language={artifactLanguage(file.path)} 
+          <CodeEditor
+            content={file.content}
+            language={artifactLanguage(file.path)}
           />
         );
       case 'text':
@@ -185,7 +178,7 @@ export function ArtifactsDrawer() {
   };
 
   return (
-    <div 
+    <div
       className="h-full flex flex-col rounded-xl overflow-hidden animate-in fade-in duration-200 relative bg-white dark:bg-neutral-900"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
@@ -204,17 +197,16 @@ export function ArtifactsDrawer() {
           </div>
         </div>
       )}
-      
+
       {/* Tab Bar with File Browser Button - Fixed at top */}
       <div className="flex-shrink-0 border-b border-neutral-200 dark:border-neutral-600 relative h-9 flex">
         {/* File Browser Button - Expands to match browser width */}
         <Button
           onClick={() => setShowFileBrowser(!showFileBrowser)}
-          className={`flex items-center px-2.5 h-full text-xs flex-shrink-0 border-r border-neutral-200 dark:border-neutral-600 transition-all duration-300 ease-out text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/30 ${
-            showFileBrowser
+          className={`flex items-center px-2.5 h-full text-xs flex-shrink-0 border-r border-neutral-200 dark:border-neutral-600 transition-all duration-300 ease-out text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/30 ${showFileBrowser
               ? 'w-64 justify-start gap-1.5'
               : 'w-auto justify-center'
-          }`}
+            }`}
           title="Browse files"
         >
           <FolderTree size={14} className="flex-shrink-0" />
@@ -232,7 +224,7 @@ export function ArtifactsDrawer() {
             {openFiles.map((path) => {
               const file = fs?.getFile(path);
               if (!file) return null;
-              
+
               const filename = getFileName(path);
               const isActive = activeFile === path;
 
@@ -240,11 +232,10 @@ export function ArtifactsDrawer() {
                 <Button
                   key={path}
                   onClick={() => selectFile(path)}
-                  className={`flex items-center gap-1.5 px-3 h-full text-xs border-r border-neutral-200 dark:border-neutral-600 min-w-0 flex-shrink-0 whitespace-nowrap ${
-                    isActive
+                  className={`flex items-center gap-1.5 px-3 h-full text-xs border-r border-neutral-200 dark:border-neutral-600 min-w-0 flex-shrink-0 whitespace-nowrap ${isActive
                       ? 'text-neutral-900 dark:text-neutral-100 border-t-2 border-t-blue-500'
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/30'
-                  } transition-colors`}
+                    } transition-colors`}
                   style={{ minWidth: 'max-content' }}
                 >
                   <FileIcon name={path} />
@@ -270,9 +261,8 @@ export function ArtifactsDrawer() {
       {/* Content Area with Sidebar */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Side Panel - File Browser */}
-        <div className={`transition-all duration-300 ease-out ${
-          showFileBrowser ? 'w-64' : 'w-0'
-        } flex-shrink-0 overflow-hidden ${showFileBrowser ? 'border-r border-neutral-200 dark:border-neutral-600' : ''}`}>
+        <div className={`transition-all duration-300 ease-out ${showFileBrowser ? 'w-64' : 'w-0'
+          } flex-shrink-0 overflow-hidden ${showFileBrowser ? 'border-r border-neutral-200 dark:border-neutral-600' : ''}`}>
           {showFileBrowser && fs && (
             <ArtifactsBrowser
               fs={fs}
@@ -281,7 +271,7 @@ export function ArtifactsDrawer() {
             />
           )}
         </div>
-        
+
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {renderEditor()}

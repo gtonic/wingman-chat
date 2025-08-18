@@ -1,10 +1,12 @@
 import { memo, useState, useEffect, useRef } from 'react';
+import type React from 'react';
 import { Code, Eye } from 'lucide-react';
 import { Button } from '@headlessui/react';
 import { useTheme } from '../hooks/useTheme';
-import { CodeEditor } from './CodeEditor';
+import { useArtifacts } from '../hooks/useArtifacts';
 
 interface MermaidEditorProps {
+  path: string;
   content: string;
 }
 
@@ -85,11 +87,11 @@ function MermaidPreview({ content }: { content: string }) {
   useEffect(() => {
     const renderMermaid = async () => {
       if (!mermaidRef.current || !isLoaded || !content.trim()) return;
-      
+
       try {
         // Generate a new element ID to force re-render when theme changes
         elementId.current = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-        
+
         const { svg: renderedSvg } = await mermaidRef.current.render(elementId.current, content);
         setSvg(renderedSvg);
       } catch (error) {
@@ -100,7 +102,7 @@ function MermaidPreview({ content }: { content: string }) {
 
     // Debounce rendering to avoid excessive re-renders
     const timeoutId = setTimeout(renderMermaid, 300);
-    
+
     return () => {
       clearTimeout(timeoutId);
     };
@@ -127,7 +129,7 @@ function MermaidPreview({ content }: { content: string }) {
 
   return (
     <div className="h-full overflow-auto p-4">
-      <div 
+      <div
         className="mermaid-diagram flex justify-center"
         dangerouslySetInnerHTML={{ __html: svg }}
       />
@@ -135,8 +137,62 @@ function MermaidPreview({ content }: { content: string }) {
   );
 }
 
-const NonMemoizedMermaidEditor = ({ content }: MermaidEditorProps) => {
+const NonMemoizedMermaidEditor = ({ path, content }: MermaidEditorProps) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
+  const { fs } = useArtifacts();
+
+  // Local editable value
+  const [editorValue, setEditorValue] = useState<string>(content);
+  const lastSavedRef = useRef<string>(content);
+
+  // Keep local state in sync when file changes or new content arrives
+  useEffect(() => {
+    setEditorValue(content);
+    lastSavedRef.current = content;
+  }, [content, path]);
+
+  // Listen for external file updates and sync editor (without losing caret)
+  useEffect(() => {
+    if (!fs) return;
+
+    const unsubscribe = fs.subscribe('fileUpdated', (updatedPath: string) => {
+      if (updatedPath === path) {
+        const file = fs.getFile(path);
+        if (file && file.content !== editorValue) {
+          setEditorValue(file.content);
+          lastSavedRef.current = file.content;
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [fs, path, editorValue]);
+
+  // Debounced autosave to filesystem
+  useEffect(() => {
+    if (!fs || !path) return;
+
+    const timer = setTimeout(() => {
+      const file = fs.getFile(path);
+      if (!file || file.content !== editorValue) {
+        fs.updateFile(path, editorValue);
+        lastSavedRef.current = editorValue;
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [fs, path, editorValue]);
+
+  const handleBlur = () => {
+    if (!fs || !path) return;
+    const file = fs.getFile(path);
+    if (!file || file.content !== editorValue) {
+      fs.updateFile(path, editorValue);
+      lastSavedRef.current = editorValue;
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
@@ -150,12 +206,20 @@ const NonMemoizedMermaidEditor = ({ content }: MermaidEditorProps) => {
           {viewMode === 'code' ? <Eye size={16} /> : <Code size={16} />}
         </Button>
       </div>
-      
+
       <div className="flex-1 overflow-auto">
         {viewMode === 'preview' ? (
-          <MermaidPreview content={content} />
+          <MermaidPreview content={editorValue} />
         ) : (
-          <CodeEditor content={content} language="mermaid" />
+          <div className="h-full p-4">
+            <textarea
+              value={editorValue}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditorValue(e.target.value)}
+              onBlur={handleBlur}
+              className="w-full h-full resize-none outline-none bg-transparent text-sm text-gray-800 dark:text-neutral-200 font-mono leading-5"
+              spellCheck={false}
+            />
+          </div>
         )}
       </div>
     </div>
@@ -164,6 +228,7 @@ const NonMemoizedMermaidEditor = ({ content }: MermaidEditorProps) => {
 
 export const MermaidEditor = memo(
   NonMemoizedMermaidEditor,
-  (prevProps, nextProps) =>
+  (prevProps: MermaidEditorProps, nextProps: MermaidEditorProps) =>
+    prevProps.path === nextProps.path &&
     prevProps.content === nextProps.content
 );
