@@ -159,11 +159,11 @@ export function ArtifactsDrawer() {
       case 'svg':
         return <SvgEditor content={file.content} />;
       case 'csv':
-        return <CsvEditor content={file.content} />;
+        return <CsvEditor path={file.path} content={file.content} />;
       case 'mermaid':
         return <MermaidEditor path={file.path} content={file.content} />;
       case 'markdown':
-        return <MarkdownEditor content={file.content} />;
+        return <MarkdownEditor path={file.path} content={file.content} />;
       case 'code':
         return (
           <CodeEditor
@@ -204,8 +204,8 @@ export function ArtifactsDrawer() {
         <Button
           onClick={() => setShowFileBrowser(!showFileBrowser)}
           className={`flex items-center px-2.5 h-full text-xs flex-shrink-0 border-r border-neutral-200 dark:border-neutral-600 transition-all duration-300 ease-out text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/30 ${showFileBrowser
-              ? 'w-64 justify-start gap-1.5'
-              : 'w-auto justify-center'
+            ? 'w-64 justify-start gap-1.5'
+            : 'w-auto justify-center'
             }`}
           title="Browse files"
         >
@@ -233,8 +233,8 @@ export function ArtifactsDrawer() {
                   key={path}
                   onClick={() => selectFile(path)}
                   className={`flex items-center gap-1.5 px-3 h-full text-xs border-r border-neutral-200 dark:border-neutral-600 min-w-0 flex-shrink-0 whitespace-nowrap ${isActive
-                      ? 'text-neutral-900 dark:text-neutral-100 border-t-2 border-t-blue-500'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/30'
+                    ? 'text-neutral-900 dark:text-neutral-100 border-t-2 border-t-blue-500'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/30'
                     } transition-colors`}
                   style={{ minWidth: 'max-content' }}
                 >

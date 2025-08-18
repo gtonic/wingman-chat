@@ -1,25 +1,28 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import type React from 'react';
 import { Code, Eye } from 'lucide-react';
 import { Button } from '@headlessui/react';
+import { useArtifacts } from '../hooks/useArtifacts';
 
 interface CsvEditorProps {
+  path: string;
   content: string;
 }
 
 // Utility function to detect separator (comma, semicolon, or tab)
 const detectSeparator = (csv: string): string => {
   if (!csv.trim()) return ',';
-  
+
   const firstLine = csv.trim().split('\n')[0];
   let commaCount = 0;
   let semicolonCount = 0;
   let tabCount = 0;
   let inQuotes = false;
-  
+
   for (let i = 0; i < firstLine.length; i++) {
     const char = firstLine[i];
     const nextChar = firstLine[i + 1];
-    
+
     if (char === '"') {
       if (inQuotes && nextChar === '"') {
         i++; // Skip escaped quote
@@ -32,7 +35,7 @@ const detectSeparator = (csv: string): string => {
       if (char === '\t') tabCount++;
     }
   }
-  
+
   // Return the separator with the highest count
   if (tabCount > 0 && tabCount >= commaCount && tabCount >= semicolonCount) return '\t';
   if (semicolonCount > commaCount) return ';';
@@ -42,20 +45,20 @@ const detectSeparator = (csv: string): string => {
 // Utility function to parse CSV content
 const parseCSV = (csv: string): string[][] => {
   if (!csv.trim()) return []; // Return empty array for empty content
-  
+
   const separator = detectSeparator(csv);
   const lines = csv.trim().split('\n');
   const result: string[][] = [];
-  
+
   for (const line of lines) {
     const row: string[] = [];
     let current = '';
     let inQuotes = false;
-    
+
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
       const nextChar = line[i + 1];
-      
+
       if (char === '"') {
         if (inQuotes && nextChar === '"') {
           // Escaped quote
@@ -73,19 +76,73 @@ const parseCSV = (csv: string): string[][] => {
         current += char;
       }
     }
-    
+
     // Add the last field
     row.push(current);
     result.push(row);
   }
-  
+
   return result;
 };
 
-export function CsvEditor({ content }: CsvEditorProps) {
+export function CsvEditor({ path, content }: CsvEditorProps) {
   const [viewMode, setViewMode] = useState<'table' | 'code'>('table');
+  const { fs } = useArtifacts();
 
-  const parsedData = useMemo(() => parseCSV(content), [content]);
+  // Local editable value
+  const [editorValue, setEditorValue] = useState<string>(content);
+  const lastSavedRef = useRef<string>(content);
+
+  // Keep local state in sync when file changes or new content arrives
+  useEffect(() => {
+    setEditorValue(content);
+    lastSavedRef.current = content;
+  }, [content, path]);
+
+  // Listen for external file updates and sync editor (without losing caret)
+  useEffect(() => {
+    if (!fs) return;
+
+    const unsubscribe = fs.subscribe('fileUpdated', (updatedPath: string) => {
+      if (updatedPath === path) {
+        const file = fs.getFile(path);
+        if (file && file.content !== editorValue) {
+          setEditorValue(file.content);
+          lastSavedRef.current = file.content;
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [fs, path, editorValue]);
+
+  // Debounced autosave to filesystem
+  useEffect(() => {
+    if (!fs || !path) return;
+
+    const timer = setTimeout(() => {
+      const file = fs.getFile(path);
+      if (!file || file.content !== editorValue) {
+        fs.updateFile(path, editorValue);
+        lastSavedRef.current = editorValue;
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [fs, path, editorValue]);
+
+  const handleBlur = () => {
+    if (!fs || !path) return;
+    const file = fs.getFile(path);
+    if (!file || file.content !== editorValue) {
+      fs.updateFile(path, editorValue);
+      lastSavedRef.current = editorValue;
+    }
+  };
+
+  const parsedData = useMemo(() => parseCSV(editorValue), [editorValue]);
 
   const headers = parsedData.length > 0 ? parsedData[0] : [];
   const rows = parsedData.slice(1);
@@ -106,9 +163,13 @@ export function CsvEditor({ content }: CsvEditorProps) {
       <div className="flex-1 overflow-auto">
         {viewMode === 'code' ? (
           <div className="p-4">
-            <pre className="text-gray-800 dark:text-neutral-300 text-sm whitespace-pre-wrap overflow-x-auto font-mono">
-              <code>{content}</code>
-            </pre>
+            <textarea
+              value={editorValue}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditorValue(e.target.value)}
+              onBlur={handleBlur}
+              className="w-full h-64 md:h-[60vh] resize-none outline-none bg-transparent text-sm text-gray-800 dark:text-neutral-200 font-mono leading-5"
+              spellCheck={false}
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">

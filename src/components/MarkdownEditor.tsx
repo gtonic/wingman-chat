@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type React from 'react';
 import { Code, Eye } from 'lucide-react';
 import { Button } from '@headlessui/react';
-import { CodeEditor } from './CodeEditor';
+import { useArtifacts } from '../hooks/useArtifacts';
 import { Markdown } from './Markdown';
 
 // Component to display Markdown content as rendered HTML
@@ -16,11 +17,66 @@ function MarkdownPreview({ content }: { content: string }) {
 }
 
 interface MarkdownEditorProps {
+  path: string;
   content: string;
 }
 
-export function MarkdownEditor({ content }: MarkdownEditorProps) {
+export function MarkdownEditor({ path, content }: MarkdownEditorProps) {
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
+  const { fs } = useArtifacts();
+
+  // Local editable value
+  const [editorValue, setEditorValue] = useState<string>(content);
+  const lastSavedRef = useRef<string>(content);
+
+  // Keep local state in sync when file changes or new content arrives
+  useEffect(() => {
+    setEditorValue(content);
+    lastSavedRef.current = content;
+  }, [content, path]);
+
+  // Listen for external file updates and sync editor (without losing caret)
+  useEffect(() => {
+    if (!fs) return;
+
+    const unsubscribe = fs.subscribe('fileUpdated', (updatedPath: string) => {
+      if (updatedPath === path) {
+        const file = fs.getFile(path);
+        if (file && file.content !== editorValue) {
+          setEditorValue(file.content);
+          lastSavedRef.current = file.content;
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [fs, path, editorValue]);
+
+  // Debounced autosave to filesystem
+  useEffect(() => {
+    if (!fs || !path) return;
+
+    const timer = setTimeout(() => {
+      const file = fs.getFile(path);
+      if (!file || file.content !== editorValue) {
+        fs.updateFile(path, editorValue);
+        lastSavedRef.current = editorValue;
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [fs, path, editorValue]);
+
+  const handleBlur = () => {
+    if (!fs || !path) return;
+    const file = fs.getFile(path);
+    if (!file || file.content !== editorValue) {
+      fs.updateFile(path, editorValue);
+      lastSavedRef.current = editorValue;
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
@@ -34,12 +90,20 @@ export function MarkdownEditor({ content }: MarkdownEditorProps) {
           {viewMode === 'code' ? <Eye size={16} /> : <Code size={16} />}
         </Button>
       </div>
-      
+
       <div className="flex-1 overflow-auto">
         {viewMode === 'preview' ? (
-          <MarkdownPreview content={content} />
+          <MarkdownPreview content={editorValue} />
         ) : (
-          <CodeEditor content={content} language="markdown" />
+          <div className="h-full p-4">
+            <textarea
+              value={editorValue}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditorValue(e.target.value)}
+              onBlur={handleBlur}
+              className="w-full h-full resize-none outline-none bg-transparent text-sm text-gray-800 dark:text-neutral-200 font-mono leading-5"
+              spellCheck={false}
+            />
+          </div>
         )}
       </div>
     </div>
