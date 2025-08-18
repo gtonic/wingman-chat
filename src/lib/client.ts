@@ -2,9 +2,10 @@ import { z } from "zod";
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 
-import { Tool } from "../types/chat";
-import { Message, Model, Role, AttachmentType } from "../types/chat";
-import { SearchResult } from "../types/search";
+import { Role, AttachmentType } from "../types/chat";
+import type { Tool } from "../types/chat";
+import type { Message, Model } from "../types/chat";
+import type { SearchResult } from "../types/search";
 
 export class Client {
   private oai: OpenAI;
@@ -25,7 +26,13 @@ export class Client {
     }));
   }
 
-  async complete(model: string, instructions: string, input: Message[], tools: Tool[], handler?: (delta: string, snapshot: string) => void): Promise<Message> {
+  async complete(
+    model: string, 
+    instructions: string, 
+    input: Message[], 
+    tools: Tool[], 
+    handler?: (delta: string, snapshot: string) => void
+  ): Promise<Message> {
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
 
     if (instructions) {
@@ -66,28 +73,54 @@ export class Client {
       }
 
       switch (m.role) {
-        case Role.User:
+        case Role.User: {
           messages.push({
             role: Role.User,
             content: content,
           });
           break;
+        }
 
-        case Role.Assistant:
-          messages.push({
+        case Role.Assistant: {
+          const assistantMessage: OpenAI.Chat.ChatCompletionMessageParam = {
             role: Role.Assistant,
             content: content.filter((c) => c.type === "text"),
-          });
+          };
+          
+          // Add tool calls if they exist
+          if (m.toolCalls && m.toolCalls.length > 0) {
+            assistantMessage.tool_calls = m.toolCalls.map(tc => ({
+              id: tc.id,
+              type: 'function' as const,
+              function: {
+                name: tc.name,
+                arguments: tc.arguments,
+              },
+            }));
+          }
+          
+          messages.push(assistantMessage);
           break;
+        }
+
+        case Role.Tool: {
+          // Handle tool messages if they exist in input
+          if (m.toolResult) {
+            messages.push({
+              role: "tool",
+              content: m.content,
+              tool_call_id: m.toolResult.id,
+            });
+          }
+          break;
+        }
       }
     }
 
     const stream = this.oai.chat.completions.stream({
       model: model,
-
       tools: this.toTools(tools),
       messages: messages,
-
       stream: true,
       stream_options: { include_usage: true },
     });
@@ -96,69 +129,30 @@ export class Client {
       stream.on("content", handler);
     }
 
-    let completion = await stream.finalChatCompletion() as OpenAI.ChatCompletion;
-    messages.push(completion.choices[0].message);
-
-    while (completion.choices[0].message?.tool_calls?.length ?? 0 > 0) {
-      for (const toolCall of completion.choices[0].message.tool_calls ?? []) {
-        // Type guard to ensure we're working with a function tool call
-        if (toolCall.type !== 'function') {
-          continue;
-        }
-
-        const tool = tools.find((t) => t.name === toolCall.function.name);
-
-        if (!tool) {
-          messages.push({
-            tool_call_id: toolCall.id,
-
-            role: "tool",
-            content: `Error: Tool "${toolCall.function.name}" not found or not executable.`,
-          });
-
-          continue;
-        }
-
-        try {
-          const args = JSON.parse(toolCall.function.arguments || "{}");
-          const result = await tool.function(args);
-
-          messages.push({
-            role: "tool",
-            content: result,
-
-            tool_call_id: toolCall.id,
-          });
-        }
-        catch (error) {
-          console.error("Tool failed", error);
-
-          messages.push({
-            role: "tool",
-            content: "error: tool execution failed.",
-
-            tool_call_id: toolCall.id,
-          });
-        }
-      }
-
-      completion = await this.oai.chat.completions.create({
-        model: model,
-
-        tools: this.toTools(tools),
-        messages: messages,
-      });
-
-      messages.push(completion.choices[0].message);
-    }
-
+    const completion = await stream.finalChatCompletion() as OpenAI.ChatCompletion;
+    
     const message = completion.choices[0].message;
+
+    // Check if the response was refused by the model
+    if (message.refusal) {
+      return {
+        role: Role.Assistant,
+        content: "",
+        error: {
+          code: "CONTENT_REFUSAL",
+          message: message.refusal
+        }
+      };
+    }
 
     return {
       role: Role.Assistant,
-
       content: message.content ?? "",
-      refusal: message.refusal ?? "",
+      toolCalls: message.tool_calls?.filter(tc => tc.type === 'function').map(tc => ({
+        id: tc.id,
+        name: tc.function.name,
+        arguments: tc.function.arguments,
+      })),
     };
   }
 
@@ -222,6 +216,122 @@ Return only the prompts themselves, without numbering or bullet points.`,
     } catch (error) {
       console.error("Error generating related prompts:", error);
       return [];
+    }
+  }
+
+  async rewriteSelection(model: string, text: string, selectionStart: number, selectionEnd: number): Promise<{ alternatives: string[], contextToReplace: string, keyChanges: string[] }> {
+    const Schema = z.object({
+      alternatives: z.array(z.object({
+        text: z.string(),
+        keyChange: z.string(),
+      }).strict()).min(3).max(6),
+    }).strict();
+
+    if (!text.trim() || selectionStart < 0 || selectionEnd <= selectionStart || selectionStart >= text.length) {
+      return { alternatives: [], contextToReplace: text.substring(selectionStart, selectionEnd), keyChanges: [] };
+    }
+
+    // Helper function to split text into sentences
+    const splitSentences = (text: string): { text: string, start: number, end: number }[] => {
+      const sentences: { text: string, start: number, end: number }[] = [];
+      const sentencePattern = /[.!?]+\s*|\n+/g;
+      let lastIndex = 0;
+      let match;
+
+      while ((match = sentencePattern.exec(text)) !== null) {
+        const sentenceText = text.substring(lastIndex, match.index + match[0].length).trim();
+        if (sentenceText) {
+          sentences.push({
+            text: sentenceText,
+            start: lastIndex,
+            end: match.index + match[0].length
+          });
+        }
+        lastIndex = match.index + match[0].length;
+      }
+
+      // Add remaining text as final sentence if any
+      if (lastIndex < text.length) {
+        const sentenceText = text.substring(lastIndex).trim();
+        if (sentenceText) {
+          sentences.push({
+            text: sentenceText,
+            start: lastIndex,
+            end: text.length
+          });
+        }
+      }
+
+      return sentences;
+    };
+
+    // Helper function to find sentences that overlap with the selection
+    const findSentencesInSelection = (sentences: { text: string, start: number, end: number }[], selectionStart: number, selectionEnd: number): string => {
+      const overlappingSentences = sentences.filter(sentence => 
+        // Sentence overlaps if it starts before selection ends and ends after selection starts
+        sentence.start < selectionEnd && sentence.end > selectionStart
+      );
+
+      if (overlappingSentences.length === 0) {
+        // Fallback to the selection itself
+        return text.substring(selectionStart, selectionEnd).trim();
+      }
+
+      // Combine all overlapping sentences
+      const firstSentence = overlappingSentences[0];
+      const lastSentence = overlappingSentences[overlappingSentences.length - 1];
+      
+      return text.substring(firstSentence.start, lastSentence.end).trim();
+    };
+
+    const sentences = splitSentences(text);
+    const contextToRewrite = findSentencesInSelection(sentences, selectionStart, selectionEnd);
+    const selectedText = text.substring(selectionStart, selectionEnd);
+
+    try {
+      const completion = await this.oai.chat.completions.parse({
+        model: model,
+        messages: [
+          {
+            role: "system",
+            content: `You will be given text that contains a user's selection. Your task is to rewrite the complete sentence(s) containing that selection while maintaining the same meaning.
+
+Guidelines:
+- Rewrite the complete sentence(s) that contain the selected text
+- Keep the core meaning intact but offer stylistic variations
+- Ensure the rewritten sentences are natural and grammatically correct
+- Maintain the same language, tone, and formality level
+- Focus on varying the expression while preserving the intent
+- Each alternative should be complete, standalone sentence(s)
+
+For each alternative, also provide a "keyChange" that shows only the significant difference compared to the original selected text. This should be:
+- Just the key word(s) or phrase that changes the meaning/style
+- Not the complete sentence, just the replacement part
+- What the user would see as the main change
+
+Return 3-6 alternative rewritten versions with their key changes.`,
+          },
+          {
+            role: "user",
+            content: `Text to rewrite: "${contextToRewrite}"
+
+Selected text within: "${selectedText}"
+
+Please provide alternative ways to rewrite this text. For each alternative, include both the complete rewritten text and the key change that represents the main difference from the original selected text.`,
+          },
+        ],
+        response_format: zodResponseFormat(Schema, "rewrite_selection"),
+      });
+
+      const result = completion.choices[0].message.parsed;
+      return {
+        alternatives: result?.alternatives.map((a) => a.text) ?? [],
+        contextToReplace: contextToRewrite,
+        keyChanges: result?.alternatives.map((a) => a.keyChange) ?? []
+      };
+    } catch (error) {
+      console.error("Error generating text alternatives:", error);
+      return { alternatives: [], contextToReplace: contextToRewrite, keyChanges: [] };
     }
   }
 
@@ -295,6 +405,21 @@ Return only the prompts themselves, without numbering or bullet points.`,
   }
 
   async translate(lang: string, input: string | Blob): Promise<string | Blob> {
+    // Input validation
+    if (input instanceof Blob) {
+      // Check file size limit (10MB)
+      const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+      if (input.size > maxFileSize) {
+        throw new Error(`File size ${(input.size / 1024 / 1024).toFixed(1)}MB exceeds the maximum limit of 10MB`);
+      }
+    } else {
+      // Check text length limit (50,000 characters)
+      const maxTextLength = 50000;
+      if (input.length > maxTextLength) {
+        throw new Error(`Text length ${input.length.toLocaleString()} characters exceeds the maximum limit of ${maxTextLength.toLocaleString()} characters`);
+      }
+    }
+
     const data = new FormData();
     data.append("lang", lang);
     
@@ -320,10 +445,77 @@ Return only the prompts themselves, without numbering or bullet points.`,
     const contentType = resp.headers.get("content-type")?.toLowerCase() || "";
     
     if (contentType.includes("text/plain") || contentType.includes("text/markdown")) {
-      return resp.text();
+      const translatedText = await resp.text();
+      // Replace German ß with ss automatically
+      return translatedText.replace(/ß/g, 'ss');
     }
     
     return resp.blob();
+  }
+
+  async rewriteText(model: string, text: string, lang: string, tone: string = '', style: string = ''): Promise<string> {
+    const Schema = z.object({
+      rewrittenText: z.string(),
+    }).strict();
+
+    if (!text.trim()) {
+      return text;
+    }
+
+    // Build tone instruction
+    const toneInstruction = !tone ? '' : 
+      tone === 'enthusiastic' ? 'Use an enthusiastic and energetic tone.' :
+      tone === 'friendly' ? 'Use a warm and friendly tone.' :
+      tone === 'confident' ? 'Use a confident and assertive tone.' :
+      tone === 'diplomatic' ? 'Use a diplomatic and tactful tone.' :
+      '';
+
+    // Build style instruction
+    const styleInstruction = !style ? '' :
+      style === 'simple' ? 'Use simple and clear language.' :
+      style === 'business' ? 'Use professional business language.' :
+      style === 'academic' ? 'Use formal academic language.' :
+      style === 'casual' ? 'Use casual and informal language.' :
+      '';
+
+    // Combine instructions
+    const additionalInstructions = [toneInstruction, styleInstruction].filter(Boolean).join(' ');
+
+    try {
+      const completion = await this.oai.chat.completions.parse({
+        model: model,
+        messages: [
+          {
+            role: "system",
+            content: `You are a text rewriting assistant. Your task is to rewrite the given text while maintaining its core meaning and translating it to the target language if needed.
+
+Guidelines:
+- Translate the text to ${lang} if it's not already in that language
+- Maintain the core meaning and information
+- ${additionalInstructions || 'Keep the original tone and style'}
+- Ensure the output is natural and fluent
+- For German text: Use "ss" instead of "ß" (eszett) for better compatibility
+- Return only the rewritten text without any explanations`,
+          },
+          {
+            role: "user",
+            content: `Please rewrite this text: "${text}"`,
+          },
+        ],
+        response_format: zodResponseFormat(Schema, "rewrite_text"),
+      });
+
+      const result = completion.choices[0].message.parsed;
+      let rewrittenText = result?.rewrittenText ?? text;
+      
+      // Replace German ß with ss automatically
+      rewrittenText = rewrittenText.replace(/ß/g, 'ss');
+      
+      return rewrittenText;
+    } catch (error) {
+      console.error("Error rewriting text:", error);
+      return text;
+    }
   }
 
   async speakText(model: string, input: string, voice?: string): Promise<void> {
@@ -402,10 +594,10 @@ Return only the prompts themselves, without numbering or bullet points.`,
       return [];
     }
 
-    return results.map((result: { title?: string; source?: string; content: string }) => ({
+    return results.map((result: SearchResult) => ({
       title: result.title || undefined,
       source: result.source || undefined,
-      content: result.content || '',
+      content: result.content,
     }));
   }
 

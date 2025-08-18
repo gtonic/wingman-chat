@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import { Chat, Message, Model, Tool } from "../types/chat";
+import type { Chat, Message, Model, Tool } from "../types/chat";
 
 export interface ChatContextType {
   // Models

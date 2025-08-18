@@ -1,11 +1,11 @@
 import { createContext } from 'react';
-import { Repository, RepositoryFile } from '../types/repository';
+import type { Repository, RepositoryFile } from '../types/repository';
 
 export type RepositoryContextType = {
   isAvailable: boolean;
   repositories: Repository[];
   currentRepository: Repository | null;
-  createRepository: (name: string, instructions?: string) => void;
+  createRepository: (name: string, instructions?: string) => Repository;
   updateRepository: (id: string, updates: Partial<Omit<Repository, 'id' | 'createdAt'>>) => void;
   deleteRepository: (id: string) => Promise<void>;
   setCurrentRepository: (repository: Repository | null) => void;

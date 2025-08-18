@@ -1,17 +1,31 @@
-import { Tool } from "../types/chat";
+import type { Tool } from "../types/chat";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import type { ContentBlock } from "@modelcontextprotocol/sdk/types.js";
 
 interface BridgeConfig {
   name: string;
-
   instructions?: string; 
 }
 
-interface ToolTextResult {
-    type: string;
-    text?: string;
+function processContent(content: ContentBlock[]): string {
+  if (!content || content.length === 0) {
+    return "no content";
+  }
+
+  if (content.every(item => item.type === "text")) {
+    return content
+      .map(item => item.text)
+      .filter(text => text.trim() !== "")
+      .join("\n\n");
+  }
+
+  if (content.length === 1) {
+    return JSON.stringify(content[0]);
+  }
+
+  return JSON.stringify(content)
 }
 
 export class Bridge {
@@ -103,18 +117,7 @@ export class Bridge {
                             arguments: args,
                         });
 
-                        const results = callResult?.content as ToolTextResult[] | undefined;
-                        const texts: string[] = [];
-
-                        if (results) {
-                            for (const res of results) {
-                                if (res.type === "text" && res.text) {
-                                    texts.push(res.text);
-                                }
-                            }
-                        }
-
-                        return texts.join("\n\n");
+                        return processContent((callResult?.content as ContentBlock[]) || []);
                     }
                     catch (error) {
                         console.error(`Error calling tool ${tool.name}:`, error);

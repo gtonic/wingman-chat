@@ -188,3 +188,61 @@ export function formatBytes(bytes: number): string {
   
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
+
+export function stripMarkdown(text: string): string {
+  if (!text) return '';
+  
+  return text
+    // Remove headers but add spacing (2 lines before, 1 after)
+    .replace(/^#{1,6}\s+(.+)$/gm, '\n\n$1\n')
+    // Remove bold/italic
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    // Remove strikethrough
+    .replace(/~~([^~]+)~~/g, '$1')
+    // Remove inline code
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove malformed code blocks (double backticks)
+    .replace(/``[\w]*\n?([\s\S]*?)``/g, (_, code) => {
+      const cleanCode = code.trim();
+      return `\n\n${cleanCode}\n\n`;
+    })
+    // Remove code blocks but keep content with spacing
+    .replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) => {
+      const cleanCode = code.trim();
+      return `\n\n${cleanCode}\n\n`;
+    })
+    // Remove any remaining single backticks (malformed inline code)
+    .replace(/`/g, '')
+    // Remove links but keep text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove images
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    // Remove horizontal rules
+    .replace(/^[-*_]{3,}$/gm, '')
+    // Remove blockquotes but keep indentation
+    .replace(/^>\s+/gm, '  ')
+    // Convert unordered list markers to bullet points
+    .replace(/^[\s]*[-*+]\s+/gm, '• ')
+    // Convert numbered lists to numbered format
+    .replace(/^[\s]*(\d+)\.\s+/gm, '$1. ')
+    // Clean up extra whitespace (but preserve intentional spacing)
+    .replace(/\n{4,}/g, '\n\n\n')
+    .replace(/^\n+/, '')
+    .trim();
+}
+
+export function downloadFromUrl(url: string, filename: string): void {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+export function downloadBlob(blob: Blob, filename: string): void {
+  return downloadFromUrl(URL.createObjectURL(blob), filename);
+}

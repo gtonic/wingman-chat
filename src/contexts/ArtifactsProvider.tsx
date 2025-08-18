@@ -1,19 +1,61 @@
-import { useState, useCallback, ReactNode, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { ArtifactsContext } from './ArtifactsContext';
-import { FileSystemManager } from '../lib/fs';
 import { getConfig } from '../config';
+import { FileSystemManager } from '../lib/fs';
+import type { FileSystem } from '../types/file';
 
 interface ArtifactsProviderProps {
   children: ReactNode;
 }
 
 export function ArtifactsProvider({ children }: ArtifactsProviderProps) {
-  const [fs, setFs] = useState<FileSystemManager | null>(null);
   const [openFiles, setOpenFiles] = useState<string[]>([]);
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [showArtifactsDrawer, setShowArtifactsDrawer] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
-  const [filesystemVersion, setFilesystemVersion] = useState(0); // Track filesystem version for reactive updates
+
+  // Create singleton FileSystemManager instance
+  const [fs] = useState(() => new FileSystemManager(
+    () => ({}), // Default empty filesystem
+    () => {} // Default setter - will be updated by setFileSystemForChat
+  ));
+
+  // Method to update the filesystem functions (called by ChatProvider)
+  const setFileSystemForChat = useCallback((
+    getFileSystem: (() => FileSystem) | null,
+    setFileSystem: ((artifacts: FileSystem) => void) | null
+  ) => {
+    if (!getFileSystem || !setFileSystem) {
+      // Reset to empty filesystem when no chat or artifacts disabled
+      fs.updateHandlers(null, null);
+      // Reset UI state
+      setOpenFiles([]);
+      setActiveFile(null);
+      return;
+    }
+
+    // Wrap the setFileSystem to match the expected signature
+    const wrappedSetter = (updateFn: (current: FileSystem) => FileSystem) => {
+      const currentFs = getFileSystem();
+      const newFs = updateFn(currentFs);
+      setFileSystem(newFs);
+    };
+    
+    fs.updateHandlers(getFileSystem, wrappedSetter);
+    
+    // Reset UI state when switching to a new chat
+    const currentFileSystem = getFileSystem();
+    const currentFilePaths = Object.keys(currentFileSystem);
+    
+    // Only keep open files that exist in the new filesystem
+    setOpenFiles(prev => prev.filter(path => currentFilePaths.includes(path)));
+    
+    // Clear active file if it doesn't exist in the new filesystem
+    setActiveFile(currentActive => 
+      currentActive && currentFilePaths.includes(currentActive) ? currentActive : null
+    );
+  }, [fs]);
 
   // Check artifacts availability from config
   useEffect(() => {
@@ -26,75 +68,54 @@ export function ArtifactsProvider({ children }: ArtifactsProviderProps) {
     }
   }, []);
 
-  // Method to set the FileSystemManager from ChatPage
-  const setFileSystemManager = useCallback((manager: FileSystemManager | null) => {
-    setFs(manager);
-    // Reset files when filesystem manager changes
-    setOpenFiles([]);
-    setActiveFile(null);
-  }, []);
-
-  // Subscribe to filesystem events for reactive updates
+  // Subscribe to filesystem events - use empty dependency array to prevent re-subscriptions
   useEffect(() => {
-    if (!fs) return;
-
-    // Sync initial filesystem version
-    setFilesystemVersion(fs.filesystemVersion);
-
     const unsubscribeCreated = fs.subscribe('fileCreated', (path: string) => {
-      // Auto-open newly created files
+      // Batch state updates together
       setOpenFiles(prev => {
-        if (prev.includes(path)) return prev;
-        return [...prev, path];
+        if (prev.includes(path)) {
+          return prev;
+        }
+        const newFiles = [...prev, path];
+        return newFiles;
       });
+      
       setActiveFile(path);
-      setFilesystemVersion(fs.filesystemVersion); // Sync version for reactive updates
+      setShowArtifactsDrawer(true);
     });
 
     const unsubscribeDeleted = fs.subscribe('fileDeleted', (path: string) => {
-      // Remove deleted files from open tabs
-      setOpenFiles(prev => {
-        const newFiles = prev.filter(file => file !== path);
-        
-        // If the deleted file was active, set a new active file
-        if (path === activeFile) {
-          const index = prev.indexOf(path);
-          const newActiveFile = newFiles.length > 0 
-            ? newFiles[Math.min(index, newFiles.length - 1)]
-            : null;
-          setActiveFile(newActiveFile);
-        }
-        
-        return newFiles;
-      });
-      setFilesystemVersion(fs.filesystemVersion); // Sync version for reactive updates
+      setOpenFiles(prev => prev.filter(file => file !== path));
+      
+      // Clear active file if it was the deleted one
+      setActiveFile(currentActive => currentActive === path ? null : currentActive);
     });
 
     const unsubscribeRenamed = fs.subscribe('fileRenamed', (oldPath: string, newPath: string) => {
-      // Update open files with new path
       setOpenFiles(prev => prev.map(file => file === oldPath ? newPath : file));
-      // Update active file if it was renamed
       setActiveFile(prev => prev === oldPath ? newPath : prev);
-      setFilesystemVersion(fs.filesystemVersion); // Sync version for reactive updates
     });
 
     const unsubscribeUpdated = fs.subscribe('fileUpdated', () => {
-      // File content updated - no need to change tabs, just sync version for reactive updates
-      setFilesystemVersion(fs.filesystemVersion);
+      // No state changes needed for content updates
     });
 
+    // Cleanup function
     return () => {
       unsubscribeCreated();
       unsubscribeDeleted();
       unsubscribeRenamed();
       unsubscribeUpdated();
     };
-  }, [fs, activeFile]);
+  }, [fs]); // fs is stable from useState, so this effectively runs once
 
   const openFile = useCallback((path: string) => {
     setOpenFiles(prev => {
-      if (prev.includes(path)) return prev;
-      return [...prev, path];
+      if (prev.includes(path)) {
+        return prev;
+      }
+      const newFiles = [...prev, path];
+      return newFiles;
     });
     setActiveFile(path);
   }, []);
@@ -126,12 +147,11 @@ export function ArtifactsProvider({ children }: ArtifactsProviderProps) {
     openFiles,
     activeFile,
     showArtifactsDrawer,
-    filesystemVersion, // Include version to force re-renders
     openFile,
     closeFile,
     setShowArtifactsDrawer,
     toggleArtifactsDrawer,
-    setFileSystemManager,
+    setFileSystemForChat,
   };
 
   return (

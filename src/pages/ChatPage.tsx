@@ -18,9 +18,6 @@ import { useRepositories } from "../hooks/useRepositories";
 import { useArtifacts } from "../hooks/useArtifacts";
 import { RepositoryDrawer } from "../components/RepositoryDrawer";
 import { ArtifactsDrawer } from "../components/ArtifactsDrawer";
-import { FileSystemManager } from "../lib/fs";
-import { FileSystem } from "../types/file";
-import { Chat } from "../types/chat";
 
 export function ChatPage() {
   const {
@@ -28,13 +25,12 @@ export function ChatPage() {
     messages,
     createChat,
     chats,
-    updateChat,
-    isResponding
+    isResponding,
   } = useChat();
   
   const { layoutMode } = useLayout();
   const { isAvailable: voiceAvailable, startVoice, stopVoice } = useVoice();
-  const { isAvailable: artifactsAvailable, showArtifactsDrawer, toggleArtifactsDrawer, setFileSystemManager } = useArtifacts();
+  const { isAvailable: artifactsAvailable, showArtifactsDrawer, toggleArtifactsDrawer } = useArtifacts();
   const { isAvailable: repositoryAvailable, toggleRepositoryDrawer, showRepositoryDrawer } = useRepositories();
   
   // Only need backgroundImage to check if background should be shown
@@ -81,70 +77,6 @@ export function ChatPage() {
 
   // Ref to track chat input height for dynamic padding
   const [chatInputHeight, setChatInputHeight] = useState(112); // Default to pb-28 (7rem = 112px)
-
-  // Ref to get current chat without causing effect dependencies
-  const getCurrentChatRef = useRef<() => Chat | null>(() => null);
-  
-  // Update the ref whenever chat or chats change
-  useEffect(() => {
-    getCurrentChatRef.current = () => {
-      if (!chat?.id) return null;
-      return chats.find(c => c.id === chat.id) || null;
-    };
-  }, [chat?.id, chats]);
-
-  // Set up artifacts filesystem integration with chat.files
-  useEffect(() => {
-    if (!chat?.id || !artifactsAvailable) {
-      setFileSystemManager(null);
-      return;
-    }
-
-    const chatId = chat.id;
-
-    // Create FileSystemManager that uses chat.files as persistence
-    const manager = new FileSystemManager(
-      // getFilesystem: returns current filesystem state from chat.files
-      () => {
-        const currentChat = getCurrentChatRef.current();
-        return currentChat?.artifacts || {};
-      },
-      
-      // setFilesystem: updates chat.files through functional updateChat
-      (updater: (current: FileSystem) => FileSystem) => {
-        updateChat(chatId, (currentChat: Chat) => ({
-          artifacts: updater(currentChat.artifacts || {})
-        }));
-      }
-    );
-
-    // Subscribe to file events
-    const unsubscribeCreated = manager.subscribe('fileCreated', (path: string) => {
-      console.log(`📄 Artifacts: File created: ${path}`);
-    });
-
-    const unsubscribeDeleted = manager.subscribe('fileDeleted', (path: string) => {
-      console.log(`🗑️ Artifacts: File deleted: ${path}`);
-    });
-
-    const unsubscribeRenamed = manager.subscribe('fileRenamed', (oldPath: string, newPath: string) => {
-      console.log(`📁 Artifacts: File renamed: ${oldPath} → ${newPath}`);
-    });
-
-    const unsubscribeUpdated = manager.subscribe('fileUpdated', (path: string) => {
-      console.log(`✏️ Artifacts: File updated: ${path}`);
-    });
-
-    setFileSystemManager(manager);
-
-    // Cleanup subscriptions when effect runs again or unmounts
-    return () => {
-      unsubscribeCreated();
-      unsubscribeDeleted();
-      unsubscribeRenamed();
-      unsubscribeUpdated();
-    };
-  }, [chat?.id, artifactsAvailable, updateChat, setFileSystemManager]);
 
   // Set up navigation actions (only once on mount)
   useEffect(() => {
@@ -485,7 +417,11 @@ export function ChatPage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-neutral-400 dark:text-neutral-500 mt-1">•</span>
-                  <span>No custom model support</span>
+                  <span>Knowledge Bases uses RAG mode only</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-neutral-400 dark:text-neutral-500 mt-1">•</span>
+                  <span>Context Window limited to ~30 pages</span>
                 </li>
               </ul>
             </div>

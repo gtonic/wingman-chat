@@ -13,7 +13,6 @@ export interface Repository {
 export interface RepositoryFile {
   id: string;
   name: string;
-  content: Blob;
   status: 'pending' | 'processing' | 'completed' | 'error';
   progress: number;
   text?: string;

@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
-import { FileSystem, File } from '../types/file';
+import { downloadBlob } from './utils';
+import type { FileSystem, File } from '../types/file';
 
 type FileEventType = 'fileCreated' | 'fileDeleted' | 'fileRenamed' | 'fileUpdated';
 
@@ -15,8 +16,8 @@ type FileEventHandler<T extends FileEventType> = T extends 'fileCreated'
 
 // FileSystem extension methods
 export class FileSystemManager {
-  private eventHandlers: Map<FileEventType, Set<(...args: unknown[]) => void>> = new Map();
-  private version: number = 0; // Track filesystem version for React state management
+  private eventHandlers = new Map<FileEventType, Set<(...args: unknown[]) => void>>();
+  private cachedFileSystem: FileSystem = {}; // Local cache to avoid React state delays
 
   constructor(
     private getFilesystem: () => FileSystem,
@@ -29,9 +30,22 @@ export class FileSystemManager {
     this.eventHandlers.set('fileUpdated', new Set());
   }
 
-  // Get current filesystem version for React state tracking
-  get filesystemVersion(): number {
-    return this.version;
+  // Update the filesystem getter and setter functions
+  updateHandlers(
+    getFilesystem: (() => FileSystem) | null,
+    setFilesystem: ((fs: (current: FileSystem) => FileSystem) => void) | null
+  ): void {
+    if (getFilesystem && setFilesystem) {
+      this.getFilesystem = getFilesystem;
+      this.setFilesystem = setFilesystem;
+      // Initialize cache with current filesystem state
+      this.cachedFileSystem = getFilesystem();
+    } else {
+      // Clear handlers when no chat or artifacts disabled
+      this.getFilesystem = () => ({});
+      this.setFilesystem = () => {}; // No-op when disabled
+      this.cachedFileSystem = {};
+    }
   }
 
   // Event subscription methods
@@ -66,53 +80,85 @@ export class FileSystemManager {
   }
 
   createFile(path: string, content: string, contentType?: string): void {
+    // Check if file already exists to determine the correct event type
+    const fileExists = path in this.cachedFileSystem;
+    
     const file: File = {
       path,
       content,
       contentType,
     };
 
-    // Use functional update to avoid stale closure issues
+    // Update cache immediately to avoid React state delays
+    this.cachedFileSystem = {
+      ...this.cachedFileSystem,
+      [path]: file
+    };
+
+    // Persist to React state
     this.setFilesystem((fs: FileSystem) => ({
       ...fs,
       [path]: file
     }));
-    this.version++; // Increment version after filesystem change
-    this.emit('fileCreated', path);
+    
+    // Emit the appropriate event based on whether the file existed
+    if (fileExists) {
+      this.emit('fileUpdated', path);
+    } else {
+      this.emit('fileCreated', path);
+    }
   }
 
   updateFile(path: string, content: string, contentType?: string): boolean {
-    const filesystem = this.getFilesystem();
-    const existingFile = filesystem[path];
+    const existingFile = this.cachedFileSystem[path];
     if (!existingFile) return false;
 
+    const updatedFile = {
+      ...existingFile,
+      content,
+      contentType,
+    };
+
+    // Update cache immediately
+    this.cachedFileSystem = {
+      ...this.cachedFileSystem,
+      [path]: updatedFile
+    };
+
+    // Persist to React state
     this.setFilesystem((fs: FileSystem) => ({
       ...fs,
-      [path]: {
-        ...existingFile,
-        content,
-        contentType,
-      }
+      [path]: updatedFile
     }));
-    this.version++; // Increment version after filesystem change
-    this.emit('fileUpdated', path);
+    
+    // Emit the event immediately since we have the updated file in cache
+    queueMicrotask(() => {
+      this.emit('fileUpdated', path);
+    });
     return true;
   }
 
   deleteFile(path: string): boolean {
-    const filesystem = this.getFilesystem();
     // Check if this is a direct file
-    const isFile = filesystem[path];
+    const isFile = this.cachedFileSystem[path];
     
     if (isFile) {
-      // Handle single file deletion
+      // Handle single file deletion - update cache immediately
+      const newCache = { ...this.cachedFileSystem };
+      delete newCache[path];
+      this.cachedFileSystem = newCache;
+
+      // Persist to React state
       this.setFilesystem((fs: FileSystem) => {
         const newFs = { ...fs };
         delete newFs[path];
         return newFs;
       });
-      this.version++; // Increment version after filesystem change
-      this.emit('fileDeleted', path);
+      
+      // Emit the event immediately since we updated the cache
+      queueMicrotask(() => {
+        this.emit('fileDeleted', path);
+      });
       return true;
     }
 
@@ -122,7 +168,14 @@ export class FileSystemManager {
     );
 
     if (affectedFiles.length > 0) {
-      // Handle folder deletion - delete all files within the folder
+      // Handle folder deletion - update cache immediately
+      const newCache = { ...this.cachedFileSystem };
+      for (const file of affectedFiles) {
+        delete newCache[file.path];
+      }
+      this.cachedFileSystem = newCache;
+
+      // Persist to React state
       this.setFilesystem((fs: FileSystem) => {
         const newFs = { ...fs };
         for (const file of affectedFiles) {
@@ -131,11 +184,13 @@ export class FileSystemManager {
         return newFs;
       });
       
-      this.version++; // Increment version after filesystem change
-      // Call the emit for each deleted file
-      for (const file of affectedFiles) {
-        this.emit('fileDeleted', file.path);
-      }
+      // Emit the events immediately since we updated the cache
+      queueMicrotask(() => {
+        // Call the emit for each deleted file
+        for (const file of affectedFiles) {
+          this.emit('fileDeleted', file.path);
+        }
+      });
       
       return true;
     }
@@ -171,7 +226,6 @@ export class FileSystemManager {
         return newFs;
       });
       
-      this.version++; // Increment version after filesystem change
       this.emit('fileRenamed', oldPath, newPath);
       return true;
     } else if (isFolder) {
@@ -195,7 +249,6 @@ export class FileSystemManager {
         return newFs;
       });
       
-      this.version++; // Increment version after filesystem change
       // Call the emit for each renamed file
       for (const file of affectedFiles) {
         const relativePath = file.path.substring(oldPath.length);
@@ -210,23 +263,23 @@ export class FileSystemManager {
   }
 
   getFile(path: string): File | undefined {
-    return this.getFilesystem()[path];
+    return this.cachedFileSystem[path];
   }
 
   listFiles(): File[] {
-    return Object.values(this.getFilesystem());
+    return Object.values(this.cachedFileSystem);
   }
 
   fileExists(path: string): boolean {
-    return path in this.getFilesystem();
+    return path in this.cachedFileSystem;
   }
 
   getFileCount(): number {
-    return Object.keys(this.getFilesystem()).length;
+    return Object.keys(this.cachedFileSystem).length;
   }
 
   async downloadAsZip(filename?: string): Promise<void> {
-    return downloadFilesystemAsZip(this.getFilesystem(), filename);
+    return downloadFilesystemAsZip(this.cachedFileSystem, filename);
   }
 }
 
@@ -253,17 +306,8 @@ export async function downloadFilesystemAsZip(
     // Generate the zip file as a blob
     const zipBlob = await zip.generateAsync({ type: 'blob' });
 
-    // Create download link and trigger download
-    const url = URL.createObjectURL(zipBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    
-    // Cleanup
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Download the zip file
+    downloadBlob(zipBlob, filename);
   } catch (error) {
     throw new Error(`Failed to create zip file: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }

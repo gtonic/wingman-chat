@@ -1,12 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useDropZone } from "../hooks/useDropZone";
 import { Button, Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
-import { PilcrowRightIcon, Loader2, PlusIcon, GlobeIcon, FileIcon, UploadIcon, XIcon, DownloadIcon } from "lucide-react";
+import { PilcrowRightIcon, Loader2, PlusIcon, GlobeIcon, FileIcon, UploadIcon, XIcon, DownloadIcon, ThermometerIcon, SwatchBookIcon, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { useNavigation } from "../hooks/useNavigation";
 import { useLayout } from "../hooks/useLayout";
 import { useTranslate } from "../hooks/useTranslate";
 import { CopyButton } from "../components/CopyButton";
 import { PlayButton } from "../components/PlayButton";
+import { RewritePopover } from "../components/RewritePopover";
+import { InteractiveText } from "../components/InteractiveText";
+import { downloadFromUrl } from "../lib/utils";
 import { getConfig } from "../config";
 
 export function TranslatePage() {
@@ -15,6 +18,14 @@ export function TranslatePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
+  // Rewrite menu state
+  const [rewriteMenu, setRewriteMenu] = useState<{
+    selectedText: string;
+    selectionStart: number;
+    selectionEnd: number;
+    position: { x: number; y: number };
+  } | null>(null);
+  
   const config = getConfig();
   const enableTTS = config.tts;
   
@@ -22,24 +33,38 @@ export function TranslatePage() {
   const {
     sourceText,
     translatedText,
+    tone,
+    style,
     isLoading,
+    error,
     supportedLanguages,
     selectedLanguage,
     selectedFile,
     translatedFileUrl,
     translatedFileName,
     supportedFiles,
+    toneOptions,
+    styleOptions,
     setSourceText,
     setTargetLang,
+    setTone,
+    setStyle,
     performTranslate,
     handleReset,
     selectFile,
     clearFile
   } = useTranslate();
 
-  const handleTranslateButtonClick = () => {
-    performTranslate();
-  };
+  // Local state for editable translated text (to allow rewriting)
+  const [currentText, setCurrentText] = useState(translatedText);
+  const [previewText, setPreviewText] = useState<string | null>(null);
+  const [errorExpanded, setErrorExpanded] = useState(false);
+  const lastSelectionRef = useRef<string>('');
+
+  // Update editable text when translated text changes
+  useEffect(() => {
+    setCurrentText(translatedText);
+  }, [translatedText]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -93,13 +118,50 @@ export function TranslatePage() {
 
   const handleDownload = () => {
     if (translatedFileUrl && translatedFileName) {
-      const link = document.createElement('a');
-      link.href = translatedFileUrl;
-      link.download = translatedFileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadFromUrl(translatedFileUrl, translatedFileName);
     }
+  };
+
+  // Handle text selection for rewriting
+  const handleTextSelect = useCallback((selectedText: string, position: { x: number; y: number }, positionStart: number, positionEnd: number) => {
+    if (!selectedText.trim() || selectedText.length < 1) return;
+    
+    // Prevent duplicate selections
+    const selectionKey = `${selectedText}-${positionStart}-${positionEnd}`;
+    if (lastSelectionRef.current === selectionKey) return;
+    lastSelectionRef.current = selectionKey;
+    
+    // Close existing menu first
+    setRewriteMenu(null);
+    
+    // Short delay to prevent visual glitches
+    setTimeout(() => {
+      setRewriteMenu({
+        selectedText: selectedText.trim(),
+        selectionStart: positionStart,
+        selectionEnd: positionEnd,
+        position: position
+      });
+    }, 50);
+  }, []);
+
+  const handleSelect = (alternative: string, contextToReplace: string) => {
+    if (rewriteMenu && currentText) {
+      // Replace the entire context with the alternative instead of just the selected text
+      const newText = currentText.replace(contextToReplace, alternative);
+      setCurrentText(newText);
+    }
+    setRewriteMenu(null);
+  };
+
+  const closeRewriteMenu = () => {
+    setRewriteMenu(null);
+    setPreviewText(null); // Clear preview when closing menu
+    lastSelectionRef.current = ''; // Clear last selection to allow clicking the same word again
+  };
+
+  const handlePreview = (previewText: string | null) => {
+    setPreviewText(previewText);
   };
 
   // Generate candidate filename for display
@@ -224,7 +286,7 @@ export function TranslatePage() {
                   <div className="absolute md:inset-y-0 md:w-px md:left-1/2 md:-translate-x-px inset-x-0 h-px md:h-auto bg-black/20 dark:bg-white/20"></div>
                   
                   <Button
-                    onClick={handleTranslateButtonClick}
+                    onClick={() => performTranslate()}
                     className="!bg-neutral-50/60 dark:!bg-neutral-900/50 backdrop-blur-lg border border-neutral-200/60 dark:border-neutral-700/50 hover:!bg-neutral-50/70 dark:hover:!bg-neutral-900/60 !text-neutral-700 dark:!text-neutral-300 hover:!text-neutral-900 dark:hover:!text-neutral-100 z-10 relative px-2 py-2 rounded-lg shadow-lg transition-all"
                     title={selectedFile ? `Translate file to ${selectedLanguage?.name || 'Selected Language'}` : `Translate to ${selectedLanguage?.name || 'Selected Language'}`}
                     disabled={
@@ -242,7 +304,8 @@ export function TranslatePage() {
 
                 {/* Target section */}
                 <div className="flex-1 flex flex-col relative min-w-0 min-h-0 overflow-hidden">
-                  <div className="absolute top-2 left-3 z-10">
+                  <div className="absolute top-2 left-3 z-10 flex items-center gap-2">
+                    {/* Language selector */}
                     <Menu>
                       <MenuButton className="inline-flex items-center gap-1 pl-1 pr-2 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 text-sm transition-colors">
                         <GlobeIcon size={14} />
@@ -267,13 +330,108 @@ export function TranslatePage() {
                         ))}
                       </MenuItems>
                     </Menu>
+
+                    {/* Tone selector - only show for text translations, not file translations */}
+                    {!selectedFile && (
+                      <Menu>
+                        <MenuButton className="inline-flex items-center gap-1 pl-1 pr-2 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 text-sm transition-colors">
+                          <ThermometerIcon size={14} />
+                          <span>
+                            {tone ? toneOptions.find(t => t.value === tone)?.label : 'Tone'}
+                          </span>
+                        </MenuButton>
+                        <MenuItems
+                          transition
+                          anchor="bottom start"
+                          className="mt-2 rounded-lg bg-neutral-50/90 dark:bg-neutral-900/90 backdrop-blur-lg border border-neutral-200 dark:border-neutral-700 overflow-y-auto shadow-lg z-50"
+                        >
+                          {toneOptions.map((toneOption) => (
+                            <MenuItem key={toneOption.value}>
+                              <Button
+                                onClick={() => setTone(toneOption.value)}
+                                className="group flex w-full items-center px-4 py-2 data-[focus]:bg-neutral-100 dark:data-[focus]:bg-neutral-800 text-neutral-700 dark:text-neutral-300 transition-colors"
+                              >
+                                {toneOption.label}
+                              </Button>
+                            </MenuItem>
+                          ))}
+                        </MenuItems>
+                      </Menu>
+                    )}
+
+                    {/* Style selector - only show for text translations, not file translations */}
+                    {!selectedFile && (
+                      <Menu>
+                        <MenuButton className="inline-flex items-center gap-1 pl-1 pr-2 py-1.5 text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 text-sm transition-colors">
+                          <SwatchBookIcon size={14} />
+                          <span>
+                            {style ? styleOptions.find(s => s.value === style)?.label : 'Style'}
+                          </span>
+                        </MenuButton>
+                        <MenuItems
+                          transition
+                          anchor="bottom start"
+                          className="mt-2 rounded-lg bg-neutral-50/90 dark:bg-neutral-900/90 backdrop-blur-lg border border-neutral-200 dark:border-neutral-700 overflow-y-auto shadow-lg z-50"
+                        >
+                          {styleOptions.map((styleOption) => (
+                            <MenuItem key={styleOption.value}>
+                              <Button
+                                onClick={() => setStyle(styleOption.value)}
+                                className="group flex w-full items-center px-4 py-2 data-[focus]:bg-neutral-100 dark:data-[focus]:bg-neutral-800 text-neutral-700 dark:text-neutral-300 transition-colors"
+                              >
+                                {styleOption.label}
+                              </Button>
+                            </MenuItem>
+                          ))}
+                        </MenuItems>
+                      </Menu>
+                    )}
                   </div>
-                  <textarea
-                    value={translatedText}
-                    readOnly
+                  <InteractiveText
+                    text={currentText}
                     placeholder={selectedFile ? "" : "Translation will appear here..."}
-                    className="absolute inset-0 w-full h-full pl-4 pr-2 pt-12 pb-2 bg-transparent border-none resize-none overflow-y-auto text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
+                    className="absolute inset-0 w-full h-full pl-4 pr-2 pt-16 pb-2 bg-transparent overflow-y-auto text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
+                    onTextSelect={handleTextSelect}
+                    previewText={previewText}
                   />
+
+                  {/* Subtle error notification for both text and file translations */}
+                  {error && (
+                    <div className="absolute bottom-2 left-2 right-2 z-10">
+                      <div className="border border-red-200 dark:border-red-800 bg-red-50/95 dark:bg-red-950/20 backdrop-blur-lg rounded-lg overflow-hidden">
+                        <button 
+                          onClick={() => setErrorExpanded(!errorExpanded)}
+                          className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <AlertCircle className="w-3 h-3 text-red-500 flex-shrink-0" />
+                            <span className="text-xs font-medium text-red-600 dark:text-red-400">
+                              {selectedFile ? 'File translation failed' : 'Translation failed'}
+                            </span>
+                            {!errorExpanded && (
+                              <span className="text-xs text-red-500 dark:text-red-400 truncate">
+                                Click to see details
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {errorExpanded ? 
+                              <ChevronDown className="w-3 h-3 text-red-500" /> : 
+                              <ChevronRight className="w-3 h-3 text-red-500" />
+                            }
+                          </div>
+                        </button>
+                        
+                        {errorExpanded && (
+                          <div className="px-3 pb-3 border-t border-red-200/50 dark:border-red-800/50">
+                            <div className="mt-2 text-xs text-red-700 dark:text-red-300 break-words">
+                              {error}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Show download link for translated files */}
                   {translatedFileUrl && translatedFileName && (
@@ -310,11 +468,11 @@ export function TranslatePage() {
                   )}
 
                   {/* Show candidate file when selected but not translated */}
-                  {selectedFile && !isLoading && !translatedFileUrl && !translatedText && (
+                  {selectedFile && !isLoading && !translatedFileUrl && !translatedText && !error && (
                     <div className="absolute inset-2 flex items-center justify-center">
                       <div 
                         className="bg-neutral-50/40 dark:bg-neutral-900/30 backdrop-blur-lg border-2 border-dashed border-neutral-200/70 dark:border-neutral-700/60 p-6 rounded-xl flex flex-col items-center gap-4 cursor-pointer hover:bg-neutral-50/50 dark:hover:bg-neutral-900/40 transition-all"
-                        onClick={handleTranslateButtonClick} 
+                        onClick={() => performTranslate()} 
                         title="Click to translate file"
                       >
                         <div className="relative">
@@ -330,12 +488,12 @@ export function TranslatePage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Show copy button for text translations and file translations that return text */}
                   {translatedText && (
                     <div className="absolute top-2 right-2 flex gap-1">
-                      {enableTTS && <PlayButton text={translatedText} className="h-4 w-4" />}
-                      <CopyButton text={translatedText} className="h-4 w-4" />
+                      {enableTTS && <PlayButton text={currentText} className="h-4 w-4" />}
+                      <CopyButton text={currentText} className="h-4 w-4" />
                     </div>
                   )}
                 </div>
@@ -344,6 +502,21 @@ export function TranslatePage() {
           </div>
         </div>
       </main>
+
+      {/* Rewrite Menu */}
+      {rewriteMenu && currentText && (
+        <RewritePopover
+          key={`${rewriteMenu.selectedText}-${rewriteMenu.selectionStart}-${rewriteMenu.selectionEnd}`}
+          selectedText={rewriteMenu.selectedText}
+          fullText={currentText}
+          selectionStart={rewriteMenu.selectionStart}
+          selectionEnd={rewriteMenu.selectionEnd}
+          position={rewriteMenu.position}
+          onClose={closeRewriteMenu}
+          onSelect={handleSelect}
+          onPreview={handlePreview}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,9 @@
-import { useState, useCallback, ReactNode, useEffect } from 'react';
-import { Repository, RepositoryFile } from '../types/repository';
+import { useState, useCallback, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import type { Repository, RepositoryFile } from '../types/repository';
 import { setValue, getValue } from '../lib/db';
-import { RepositoryContext, RepositoryContextType } from './RepositoryContext';
+import { RepositoryContext } from './RepositoryContext';
+import type { RepositoryContextType } from './RepositoryContext';
 import { getConfig } from '../config';
 
 const REPOSITORIES_DB_KEY = 'repositories';
@@ -88,7 +90,7 @@ export function RepositoryProvider({ children }: { children: ReactNode }) {
     }
   }, [currentRepository, isLoaded]);
 
-  const createRepository = useCallback((name: string, instructions?: string) => {
+  const createRepository = useCallback((name: string, instructions?: string): Repository => {
     const config = getConfig();
 
     const newRepository: Repository = {
@@ -104,6 +106,8 @@ export function RepositoryProvider({ children }: { children: ReactNode }) {
     
     setRepositories(prev => [...prev, newRepository]);
     setCurrentRepository(newRepository);
+    
+    return newRepository;
   }, []);
 
   const updateRepository = useCallback((id: string, updates: Partial<Omit<Repository, 'id' | 'createdAt'>>) => {

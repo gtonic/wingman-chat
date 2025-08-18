@@ -1,6 +1,7 @@
 import { useContext, useCallback } from 'react';
-import { ArtifactsContext, ArtifactsContextType } from '../contexts/ArtifactsContext';
-import { Tool } from '../types/chat';
+import { ArtifactsContext } from '../contexts/ArtifactsContext';
+import type { ArtifactsContextType } from '../contexts/ArtifactsContext';
+import type { Tool } from '../types/chat';
 
 export interface ArtifactsHook extends ArtifactsContextType {
   artifactsTools: () => Tool[];
@@ -24,7 +25,7 @@ export function useArtifacts(): ArtifactsHook {
     return [
       {
         name: 'create_file',
-        description: 'Create a new file in the virtual filesystem with the specified path and content.',
+        description: 'Create a new file or update an existing file in the virtual filesystem with the specified path and content.',
         parameters: {
           type: 'object',
           properties: {
@@ -43,8 +44,6 @@ export function useArtifacts(): ArtifactsHook {
           const path = args.path as string;
           const content = args.content as string;
 
-          console.log(`📄 Creating file: ${path}`);
-
           if (!path || !content) {
             return JSON.stringify({ error: 'Path and content are required' });
           }
@@ -59,14 +58,12 @@ export function useArtifacts(): ArtifactsHook {
               return JSON.stringify({ error: 'File system not available' });
             }
             fs.createFile(path, content);
-            console.log(`✅ File created successfully: ${path}`);
             return JSON.stringify({ 
               success: true, 
               message: `File created: ${path}`,
               path 
             });
           } catch (error) {
-            console.error('❌ Failed to create file:', error);
             return JSON.stringify({ error: 'Failed to create file' });
           }
         }
@@ -87,8 +84,6 @@ export function useArtifacts(): ArtifactsHook {
         function: async (args: Record<string, unknown>): Promise<string> => {
           const directory = args.directory as string | undefined;
 
-          console.log(`📋 Listing files${directory ? ` in directory: ${directory}` : ''}`);
-
           try {
             if (!fs) {
               return JSON.stringify({ error: 'File system not available' });
@@ -104,14 +99,12 @@ export function useArtifacts(): ArtifactsHook {
               contentType: file.contentType
             }));
 
-            console.log(`✅ Found ${fileList.length} files`);
             return JSON.stringify({ 
               success: true, 
               files: fileList,
               count: fileList.length
             });
           } catch (error) {
-            console.error('❌ Failed to list files:', error);
             return JSON.stringify({ error: 'Failed to list files' });
           }
         }
@@ -132,8 +125,6 @@ export function useArtifacts(): ArtifactsHook {
         function: async (args: Record<string, unknown>): Promise<string> => {
           const path = args.path as string;
 
-          console.log(`🗑️ Deleting: ${path}`);
-
           if (!path) {
             return JSON.stringify({ error: 'Path is required' });
           }
@@ -153,7 +144,6 @@ export function useArtifacts(): ArtifactsHook {
             const success = fs.deleteFile(path);
             if (success) {
               const itemType = file ? 'file' : 'folder';
-              console.log(`✅ ${itemType} deleted successfully: ${path}`);
               return JSON.stringify({ 
                 success: true, 
                 message: `${itemType} deleted: ${path}`,
@@ -163,7 +153,6 @@ export function useArtifacts(): ArtifactsHook {
               return JSON.stringify({ error: `Failed to delete: ${path}` });
             }
           } catch (error) {
-            console.error('❌ Failed to delete:', error);
             return JSON.stringify({ error: 'Failed to delete item' });
           }
         }
@@ -188,8 +177,6 @@ export function useArtifacts(): ArtifactsHook {
         function: async (args: Record<string, unknown>): Promise<string> => {
           const fromPath = args.fromPath as string;
           const toPath = args.toPath as string;
-
-          console.log(`📁 Moving file from ${fromPath} to ${toPath}`);
 
           if (!fromPath || !toPath) {
             return JSON.stringify({ error: 'Both fromPath and toPath are required' });
@@ -224,7 +211,6 @@ export function useArtifacts(): ArtifactsHook {
               });
             }
 
-            console.log(`✅ File moved successfully from ${fromPath} to ${toPath}`);
             return JSON.stringify({ 
               success: true, 
               message: `File moved from ${fromPath} to ${toPath}`,
@@ -232,7 +218,6 @@ export function useArtifacts(): ArtifactsHook {
               toPath
             });
           } catch (error) {
-            console.error('❌ Failed to move file:', error);
             return JSON.stringify({ error: 'Failed to move file' });
           }
         }
@@ -252,8 +237,6 @@ export function useArtifacts(): ArtifactsHook {
         },
         function: async (args: Record<string, unknown>): Promise<string> => {
           const path = args.path as string;
-
-          console.log(`📖 Reading file: ${path}`);
 
           if (!path) {
             return JSON.stringify({ error: 'Path is required' });
@@ -276,13 +259,11 @@ export function useArtifacts(): ArtifactsHook {
               contentType: file.contentType,
             };
 
-            console.log(`✅ File read successfully: ${path} (${file.content.length} chars)`);
             return JSON.stringify({ 
               success: true, 
               file: fileInfo
             });
           } catch (error) {
-            console.error('❌ Failed to read file:', error);
             return JSON.stringify({ error: 'Failed to read file content' });
           }
         }
@@ -296,8 +277,6 @@ export function useArtifacts(): ArtifactsHook {
           required: []
         },
         function: async (): Promise<string> => {
-          console.log(`📍 Getting current file path`);
-
           try {
             if (!activeFile) {
               return JSON.stringify({ 
@@ -307,13 +286,11 @@ export function useArtifacts(): ArtifactsHook {
               });
             }
 
-            console.log(`✅ Current file path: ${activeFile}`);
             return JSON.stringify({ 
               success: true, 
               currentPath: activeFile
             });
           } catch (error) {
-            console.error('❌ Failed to get current path:', error);
             return JSON.stringify({ error: 'Failed to get current path' });
           }
         }
@@ -327,8 +304,6 @@ export function useArtifacts(): ArtifactsHook {
           required: []
         },
         function: async (): Promise<string> => {
-          console.log(`📋 Getting current file info`);
-
           try {
             if (!activeFile) {
               return JSON.stringify({ 
@@ -356,13 +331,11 @@ export function useArtifacts(): ArtifactsHook {
               contentType: file.contentType,
             };
 
-            console.log(`✅ Current file: ${activeFile} (${file.content.length} chars)`);
             return JSON.stringify({ 
               success: true, 
               currentFile: fileInfo
             });
           } catch (error) {
-            console.error('❌ Failed to get current file:', error);
             return JSON.stringify({ error: 'Failed to get current file info' });
           }
         }
@@ -397,7 +370,7 @@ The user can view and interact with these files through the artifacts drawer int
 `.trim();
   }, []);
 
-  const isEnabled = context.isAvailable && (context.showArtifactsDrawer || (fs !== null && fs.listFiles().length > 0));
+  const isEnabled = context.isAvailable && (context.showArtifactsDrawer || fs.listFiles().length > 0);
   
   return {
     ...context,

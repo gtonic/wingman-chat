@@ -1,13 +1,14 @@
 import { Fragment, useState, useEffect } from 'react';
-import { X, Settings, MessageSquare, Trash2, ChevronsUpDown, Check, User, Package } from 'lucide-react';
+import { X, Settings, MessageSquare, Trash2, ChevronsUpDown, Check, User, Package, Download, Upload } from 'lucide-react';
 import { Dialog, Transition, Listbox, Button } from '@headlessui/react';
 import { useSettings } from '../hooks/useSettings';
 import { useChat } from '../hooks/useChat';
 import { useRepositories } from '../hooks/useRepositories';
 import { getStorageUsage } from '../lib/db';
-import { formatBytes } from '../lib/utils';
+import { formatBytes, downloadBlob } from '../lib/utils';
 import { getConfig } from '../config';
 import type { Theme, LayoutMode, BackgroundPack } from '../types/settings';
+import type { RepositoryFile } from '../types/repository';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -65,8 +66,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     backgroundPacks, backgroundSetting, setBackground,
     profile, updateProfile
   } = useSettings();
-  const { chats, deleteChat } = useChat();
-  const { repositories, deleteRepository } = useRepositories();
+  const { chats, createChat, updateChat, deleteChat } = useChat();
+  const { repositories, createRepository, updateRepository, deleteRepository, upsertFile } = useRepositories();
   const [activeSection, setActiveSection] = useState('general');
   const [storageInfo, setStorageInfo] = useState<{
     totalSize: number;
@@ -127,6 +128,201 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       repositories.forEach(repo => deleteRepository(repo.id));
       // Recalculate storage after deletion
       setTimeout(() => loadStorageInfo(), 750);
+    }
+  };
+
+  const importRepositories = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.multiple = false;
+    
+    input.onchange = async (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        // Read JSON file
+        const jsonData = await file.text();
+        const importData = JSON.parse(jsonData);
+        
+        // Validate import data structure
+        if (!importData.repositories || !Array.isArray(importData.repositories)) {
+          alert('Invalid import file: Expected repositories array not found.');
+          return;
+        }
+
+        // Confirm import
+        const importCount = importData.repositories.length;
+        if (!window.confirm(`Import ${importCount} repositor${importCount === 1 ? 'y' : 'ies'}? This will add to your existing repositories.`)) {
+          return;
+        }
+
+        // Import repositories by creating them one by one
+        let importedCount = 0;
+        
+        for (const repoData of importData.repositories) {
+          try {
+            // Create a new repository and update it with imported data
+            const newRepo = createRepository(repoData.name || 'Imported Repository', repoData.instructions);
+            updateRepository(newRepo.id, {
+              ...repoData,
+              id: newRepo.id, // Keep the new ID to avoid conflicts
+              // Convert date strings back to Date objects if needed
+              createdAt: repoData.createdAt ? new Date(repoData.createdAt) : new Date(),
+              updatedAt: repoData.updatedAt ? new Date(repoData.updatedAt) : new Date(),
+            });
+            
+            // Import files if they exist
+            if (repoData.files && Array.isArray(repoData.files)) {
+              for (const fileData of repoData.files) {
+                try {
+                  // Create repository file with converted dates
+                  const repoFile: RepositoryFile = {
+                    ...fileData,
+                    id: fileData.id || crypto.randomUUID(),
+                    uploadedAt: fileData.uploadedAt ? new Date(fileData.uploadedAt) : new Date(),
+                  };
+                  
+                  // Add file to repository
+                  upsertFile(newRepo.id, repoFile);
+                } catch (error) {
+                  console.error('Failed to import file:', fileData, error);
+                }
+              }
+            }
+            
+            importedCount++;
+          } catch (error) {
+            console.error('Failed to import repository:', repoData, error);
+          }
+        }
+
+        alert(`Successfully imported ${importedCount} repositor${importedCount === 1 ? 'y' : 'ies'}.`);
+        
+        // Recalculate storage after import
+        setTimeout(() => loadStorageInfo(), 750);
+        
+      } catch (error) {
+        console.error('Failed to import repositories:', error);
+        alert('Failed to import repositories. Please check the file format and try again.');
+      }
+    };
+
+    input.click();
+  };
+
+  const exportRepositories = async () => {
+    try {
+      // Create export data
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        version: '2.0',
+        repositories: repositories.map(repo => ({
+          ...repo,
+          // Safely convert dates to ISO strings for JSON serialization
+          createdAt: repo.createdAt ? (repo.createdAt instanceof Date ? repo.createdAt.toISOString() : repo.createdAt) : null,
+          updatedAt: repo.updatedAt ? (repo.updatedAt instanceof Date ? repo.updatedAt.toISOString() : repo.updatedAt) : null,
+          files: repo.files?.map(file => ({
+            ...file,
+            uploadedAt: file.uploadedAt ? (file.uploadedAt instanceof Date ? file.uploadedAt.toISOString() : file.uploadedAt) : null,
+          })) || []
+        }))
+      };
+      
+      // Create and download JSON file
+      const jsonBlob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const filename = `wingman-repositories-${new Date().toISOString().split('T')[0]}.json`;
+      downloadBlob(jsonBlob, filename);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export repositories. Please try again.');
+    }
+  };
+
+  const importChats = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.multiple = false;
+    
+    input.onchange = async (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        // Read JSON file
+        const jsonData = await file.text();
+        const importData = JSON.parse(jsonData);
+        
+        // Validate import data structure
+        if (!importData.chats || !Array.isArray(importData.chats)) {
+          alert('Invalid import file: Expected chats array not found.');
+          return;
+        }
+
+        // Confirm import
+        const importCount = importData.chats.length;
+        if (!window.confirm(`Import ${importCount} chat${importCount === 1 ? '' : 's'}? This will add to your existing chats.`)) {
+          return;
+        }
+
+        // Import chats by creating them one by one
+        let importedCount = 0;
+        
+        for (const chatData of importData.chats) {
+          try {
+            // Create a new chat and update it with imported data
+            const newChat = createChat();
+            updateChat(newChat.id, () => ({
+              ...chatData,
+              id: newChat.id, // Keep the new ID to avoid conflicts
+              // Convert date strings back to Date objects if needed
+              created: chatData.created ? new Date(chatData.created) : new Date(),
+              updated: chatData.updated ? new Date(chatData.updated) : new Date(),
+            }));
+
+            importedCount++;
+          } catch (error) {
+            console.error('Failed to import chat:', chatData, error);
+          }
+        }
+
+        alert(`Successfully imported ${importedCount} chat${importedCount === 1 ? '' : 's'}.`);
+        
+        // Recalculate storage after import
+        setTimeout(() => loadStorageInfo(), 750);
+        
+      } catch (error) {
+        console.error('Failed to import chats:', error);
+        alert('Failed to import chats. Please check the file format and try again.');
+      }
+    };
+
+    input.click();
+  };
+
+  const exportChats = async () => {
+    try {
+      // Create export data
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        version: '2.0',
+        chats: chats.map(chat => ({
+          ...chat,
+          // Safely convert dates to ISO strings for JSON serialization
+          created: chat.created ? (chat.created instanceof Date ? chat.created.toISOString() : chat.created) : null,
+          updated: chat.updated ? (chat.updated instanceof Date ? chat.updated.toISOString() : chat.updated) : null,
+        }))
+      };
+      
+      // Create and download JSON file
+      const jsonBlob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const filename = `wingman-chats-${new Date().toISOString().split('T')[0]}.json`;
+      downloadBlob(jsonBlob, filename);
+    } catch (error) {
+      console.error('Failed to export chats:', error);
+      alert('Failed to export chats. Please try again.');
     }
   };
 
@@ -242,14 +438,31 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-1">Chat Management</h3>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">You have {chats.length} chat{chats.length === 1 ? '' : 's'} saved locally.</p>
               </div>
-              <Button
-                onClick={deleteChats}
-                disabled={chats.length === 0}
-                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800 disabled:bg-neutral-100 dark:disabled:bg-neutral-800 disabled:text-neutral-400 dark:disabled:text-neutral-600 disabled:cursor-not-allowed disabled:border-transparent"
-              >
-                <Trash2 size={16} />
-                Delete All Chats
-              </Button>
+              <div className="flex flex-col gap-1">
+                <Button
+                  onClick={importChats}
+                  className="flex items-center gap-3 px-0 py-2 text-sm transition-colors text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
+                >
+                  <Upload size={16} />
+                  Import Chats
+                </Button>
+                <Button
+                  onClick={exportChats}
+                  disabled={chats.length === 0}
+                  className="flex items-center gap-3 px-0 py-2 text-sm transition-colors text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 disabled:text-neutral-400 dark:disabled:text-neutral-600 disabled:cursor-not-allowed"
+                >
+                  <Download size={16} />
+                  Export Chats
+                </Button>
+                <Button
+                  onClick={deleteChats}
+                  disabled={chats.length === 0}
+                  className="flex items-center gap-3 px-0 py-2 text-sm transition-colors text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:text-neutral-400 dark:disabled:text-neutral-600 disabled:cursor-not-allowed"
+                >
+                  <Trash2 size={16} />
+                  Delete All
+                </Button>
+              </div>
             </div>
           </div>
         );
@@ -278,14 +491,31 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 mb-1">Repository Management</h3>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">You have {repositories.length} repositor{repositories.length === 1 ? 'y' : 'ies'} saved locally.</p>
               </div>
-              <Button
-                onClick={deleteRepositories}
-                disabled={repositories.length === 0}
-                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800 disabled:bg-neutral-100 dark:disabled:bg-neutral-800 disabled:text-neutral-400 dark:disabled:text-neutral-600 disabled:cursor-not-allowed disabled:border-transparent"
-              >
-                <Trash2 size={16} />
-                Delete All Repositories
-              </Button>
+              <div className="flex flex-col gap-1">
+                <Button
+                  onClick={importRepositories}
+                  className="flex items-center gap-3 px-0 py-2 text-sm transition-colors text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
+                >
+                  <Upload size={16} />
+                  Import Repositories
+                </Button>
+                <Button
+                  onClick={exportRepositories}
+                  disabled={repositories.length === 0}
+                  className="flex items-center gap-3 px-0 py-2 text-sm transition-colors text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 disabled:text-neutral-400 dark:disabled:text-neutral-600 disabled:cursor-not-allowed"
+                >
+                  <Download size={16} />
+                  Export Repositories
+                </Button>
+                <Button
+                  onClick={deleteRepositories}
+                  disabled={repositories.length === 0}
+                  className="flex items-center gap-3 px-0 py-2 text-sm transition-colors text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:text-neutral-400 dark:disabled:text-neutral-600 disabled:cursor-not-allowed"
+                >
+                  <Trash2 size={16} />
+                  Delete All
+                </Button>
+              </div>
             </div>
           </div>
         );

@@ -1,6 +1,6 @@
 import { Bridge } from "./lib/bridge";
 import { Client } from "./lib/client";
-import { Model } from "./types/chat";
+import type { Model } from "./types/chat";
 
 interface backgroundConfig {
   url: string;
@@ -74,6 +74,7 @@ interface artifactsConfig {
 
 interface translatorConfig {
   enabled: boolean;
+  model?: string
   files: string[];
   languages: string[];
 }
