@@ -216,7 +216,7 @@ export function TranslatePage() {
                   } transition-all duration-200`}
                 >
                   {/* File upload controls */}
-                  <div className="absolute top-2 left-4 z-10">
+                  <div className="absolute top-2 left-3 z-10">
                     {!selectedFile && supportedFiles.length > 0 && (
                       <Button
                         onClick={handleFileUploadClick}
@@ -275,7 +275,7 @@ export function TranslatePage() {
                       value={sourceText}
                       onChange={(e) => setSourceText(e.target.value)}
                       placeholder="Enter text to translate..."
-                      className="absolute inset-0 w-full h-full pl-4 pr-8 md:pr-2 pt-12 pb-2 md:pb-2 bg-transparent border-none resize-none overflow-y-auto text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
+                      className="absolute inset-0 w-full h-full pl-4 pr-2 pt-12 pb-2 bg-transparent border-none resize-none overflow-y-auto text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
                     />
                   )}
                 </div>
@@ -390,7 +390,7 @@ export function TranslatePage() {
                   <InteractiveText
                     text={currentText}
                     placeholder={selectedFile ? "" : "Translation will appear here..."}
-                    className="absolute inset-0 w-full h-full pl-4 pr-2 pt-16 pb-2 bg-transparent overflow-y-auto text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
+                    className="absolute inset-0 w-full h-full pl-4 pr-2 pt-12 pb-2 bg-transparent overflow-y-auto text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 dark:placeholder:text-neutral-400"
                     onTextSelect={handleTextSelect}
                     previewText={previewText}
                   />

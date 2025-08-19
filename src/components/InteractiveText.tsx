@@ -24,7 +24,6 @@ export function InteractiveText({
 }: InteractiveTextProps) {
   const [hoveredWord, setHoveredWord] = useState<string | null>(null);
   const [selectedWord, setSelectedWord] = useState<WordInfo | null>(null);
-  const [sentenceBounds, setSentenceBounds] = useState<{ start: number; end: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastSelectionTimeRef = useRef<number>(0);
 
@@ -48,35 +47,11 @@ export function InteractiveText({
     return wordList;
   }, [displayText]);
 
-  // Find sentence boundaries
-    // Find sentence boundaries
-  const findSentenceBounds = useCallback((position: number): { start: number; end: number } => {
-    let start = 0;
-    let end = displayText.length;
-
-    // Find sentence start
-    const textBefore = displayText.substring(0, position);
-    const lastEnder = textBefore.search(/[.!?\n][^.!?\n]*$/);
-    if (lastEnder !== -1) {
-      start = lastEnder + 1;
-    }
-
-    // Find sentence end
-    const textAfter = displayText.substring(position);
-    const nextEnder = textAfter.search(/[.!?\n]/);
-    if (nextEnder !== -1) {
-      end = position + nextEnder;
-    }
-
-    return { start, end };
-  }, [displayText]);
-
   // Clear selection when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setSelectedWord(null);
-        setSentenceBounds(null);
       }
     };
 
@@ -87,7 +62,6 @@ export function InteractiveText({
   // Clear highlighting when text changes
   useEffect(() => {
     setSelectedWord(null);
-    setSentenceBounds(null);
   }, [text]);
 
   // Handle text selection
@@ -110,7 +84,6 @@ export function InteractiveText({
     
     // Clear word selection
     setSelectedWord(null);
-    setSentenceBounds(null);
     
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
@@ -140,16 +113,15 @@ export function InteractiveText({
     // Clear text selection
     window.getSelection()?.removeAllRanges();
     
-    // Set selected word and sentence bounds
+    // Set selected word
     setSelectedWord(word);
-    setSentenceBounds(findSentenceBounds(word.start));
     
     const rect = event.currentTarget.getBoundingClientRect();
     onTextSelect(word.clean, {
       x: rect.left + rect.width / 2,
       y: rect.bottom + 5
     }, word.start, word.end);
-  }, [onTextSelect, findSentenceBounds]);
+  }, [onTextSelect]);
 
   // Render empty state
   if (!displayText.trim()) {
@@ -183,9 +155,6 @@ export function InteractiveText({
       
       const isSelected = selectedWord?.start === word.start;
       const isHovered = hoveredWord === word.clean;
-      const isInSentence = sentenceBounds && 
-        word.start >= sentenceBounds.start && 
-        word.end <= sentenceBounds.end;
       
       // Add interactive word
       elements.push(
@@ -196,7 +165,6 @@ export function InteractiveText({
             ${isSelected ? 'bg-blue-200 dark:bg-blue-800/50 text-blue-900 dark:text-blue-100 px-1 font-medium' :
               isHovered ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-0.5' :
               'hover:bg-neutral-100 dark:hover:bg-neutral-800/50 px-0.5'}
-            ${isInSentence && !isSelected ? 'border-b border-neutral-300 dark:border-neutral-600 border-dotted' : ''}
           `}
           onMouseEnter={() => setHoveredWord(word.clean)}
           onMouseLeave={() => setHoveredWord(null)}
@@ -231,12 +199,11 @@ export function InteractiveText({
   return (
     <div 
       ref={containerRef} 
-      className={`${className} ${previewText ? 'bg-blue-50/30 dark:bg-blue-900/20 transition-colors' : ''}`}
+      className={`${className}`}
       onMouseUp={handleTextSelection}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           setSelectedWord(null);
-          setSentenceBounds(null);
         }
       }}
       style={{ userSelect: 'text' }}

@@ -111,6 +111,17 @@ export function RewritePopover({
     }
   };
 
+  // Calculate optimal width based on content
+  const calculateWidth = () => {
+    if (data.keyChanges.length === 0) return 200; // fallback for loading/empty states
+    
+    const maxLength = Math.max(...data.keyChanges.map(change => change.length));
+    const baseWidth = Math.max(200, Math.min(400, maxLength * 8 + 80)); // 8px per char + padding
+    return baseWidth;
+  };
+
+  const popoverWidth = calculateWidth();
+
   return (
     <Popover>
       <Popover.Panel
@@ -118,13 +129,14 @@ export function RewritePopover({
         static
         className="fixed z-50 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-lg border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-xl overflow-hidden"
         style={{
-          left: `clamp(10px, ${position.x}px, calc(100vw - 290px))`,
-          top: `clamp(10px, ${position.y + 10}px, calc(100vh - 210px))`,
-          width: '280px',
+          left: `clamp(10px, ${position.x}px, calc(100vw - ${popoverWidth + 20}px))`,
+          top: `clamp(10px, ${position.y + 10}px, calc(100vh - 280px))`,
+          width: `min(${popoverWidth}px, calc(100vw - 20px))`,
+          maxHeight: 'min(270px, calc(100vh - 20px))',
         }}
       >
         {/* Content */}
-        <div className="max-h-48 overflow-y-auto">
+        <div className="overflow-y-auto" style={{ maxHeight: 'min(270px, calc(100vh - 20px))' }}>
           {isLoading ? (
             <LoadingState />
           ) : data.alternatives.length > 0 ? (
@@ -189,15 +201,10 @@ function AlternativesList({
             onMouseLeave={onMouseLeave}
             className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors border-none"
           >
-            <div className="flex flex-col gap-1">
-              <div className="font-medium truncate">
-                <span className="text-neutral-400 dark:text-neutral-500">...</span>
-                <span className="mx-1">{keyChange}</span>
-                <span className="text-neutral-400 dark:text-neutral-500">...</span>
-              </div>
-              <div className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-                {alternative}
-              </div>
+            <div className="font-medium leading-relaxed">
+              <span className="text-neutral-400 dark:text-neutral-500">...</span>
+              <span className="mx-1">{keyChange}</span>
+              <span className="text-neutral-400 dark:text-neutral-500">...</span>
             </div>
           </Button>
         );
